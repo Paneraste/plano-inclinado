@@ -34,6 +34,7 @@ Em todos os cenários:
   Rampa máxima com velocidade constante: traseira tanθ = μ(L−b)/(L−μh) · dianteira tanθ = μb/(L+μh) · 4×4 tanθ = μ.
 - **Bloco**: segura se mg·senθ ≤ μ<sub>s</sub>·N; senão desliza com μ<sub>k</sub>.
 - **Bondinho**: T − mg·senθ = m·a · N<sub>A</sub> + N<sub>B</sub> = mg·cosθ · carrinho leve com ΣM no pino = 0 → N<sub>B</sub> − N<sub>A</sub> = 2·e·T/L. A cabine pendurada se alinha com a gravidade aparente (g − a).
+- A rampa é infinita: a câmera acompanha o objeto e a velocidade tem um limite de 90 km/h. Trocar o modo (acelera, ponto morto, freio, tração, piso, carga) faz o carro recomeçar parado no mesmo lugar, para o efeito aparecer na hora.
 - Não considera resistência ao rolamento, nem a do ar, nem a inércia das rodas.
 
 ## Como usar em aula

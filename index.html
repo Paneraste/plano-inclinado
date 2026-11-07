@@ -93,7 +93,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var(--r) var(--r) 0 0}
 .verdict{position:absolute;top:14px;left:14px;right:14px;pointer-events:none;display:flex}
 .verdict div{display:inline-flex;align-items:center;gap:10px;padding:8px 18px 8px 8px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,var(--panel));border:2px solid currentColor;font-size:20px;font-weight:700;letter-spacing:-.01em;box-shadow:var(--shadow);max-width:100%}
-.verdict div::before{content:"■";display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:currentColor;color:var(--panel);font-size:14px;flex:none}
+.verdict div::before{content:"■";display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--vc,currentColor);color:#fff;font-size:14px;flex:none}
 .verdict div[data-s="up"]::before{content:"▲"}
 .verdict div[data-s="down"]::before{content:"▼"}
 .verdict div[data-s="hold"]::before{content:"■"}
@@ -122,7 +122,7 @@ canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var
 .tug .lbls{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:13px;color:var(--muted)}
 .tug .bar.win{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 0%,transparent),0 0 16px 2px color-mix(in srgb,var(--text) 18%,transparent)}
 .net{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:15px;background:color-mix(in srgb,currentColor 10%,var(--panel));border:1.5px solid color-mix(in srgb,currentColor 45%,transparent)}
-.net .ico{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:currentColor;color:var(--panel);font-size:13px;flex:none}
+.net .ico{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--vc,currentColor);color:#fff;font-size:13px;flex:none}
 .net .lab{color:var(--text)} .net b{font-family:var(--f-num)}
 .say{font-size:15.5px;line-height:1.6;margin-top:12px}
 .say b{font-weight:700}
@@ -142,6 +142,16 @@ canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var
 .seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:6px 6px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
 .seg button:hover{color:var(--text)}
 .seg button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+.seg-ico button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px 7px;white-space:normal;line-height:1.15;text-align:center}
+.seg-ico button .i{display:grid;place-items:center;height:24px;color:var(--tone)}
+.seg-ico button .i svg{height:22px;width:auto;max-width:40px}
+.seg-ico button .tx{font-size:12.5px}
+.seg-ico button.on{box-shadow:var(--shadow),inset 0 -3px 0 var(--tone);color:var(--text)}
+.seg-ico button:not(.on) .i{opacity:.75}
+.swc{display:block;width:20px;height:20px;border-radius:50%;border:2px solid color-mix(in srgb,var(--text) 25%,transparent);box-shadow:inset 0 2px 4px rgba(255,255,255,.25)}
+.ctl .top label,.ctl .top .hl{display:flex;align-items:center;gap:8px}
+.ctl .hi{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;background:color-mix(in srgb,currentColor 14%,transparent);flex:none}
+.ctl .hi svg{width:16px;height:16px}
 .legend{display:flex;flex-direction:column;gap:10px}
 .legend .it{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45}
 .legend .it b{font-weight:700}
@@ -364,60 +374,104 @@ function setTab(t, reset=true){
 }
 $('tabs').onclick = e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); };
 
+// ---------------- ícones dos controles ----------------
+const ICO = {
+  ang:'<path d="M3 20h18M3 20L19 6"/><path d="M11 20a8 8 0 0 0-2.4-5.7"/>',
+  mass:'<path d="M6 9h12l2 11H4z"/><circle cx="12" cy="5.5" r="2.5"/>',
+  gas:'<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.2"/>',
+  force:'<path d="M3 12h15M13 6l6 6-6 6"/>',
+  accel:'<path d="M5 19l7-14 7 14"/><path d="M8.5 13h7"/>',
+  neutral:'<circle cx="12" cy="12" r="9"/><path d="M9 16V8l6 8V8"/>',
+  park:'<circle cx="12" cy="12" r="9"/><path d="M10 17V7h3a3 3 0 0 1 0 6h-3"/>',
+  mu:'<path d="M3 9c3-3 6 3 9 0s6 3 9 0M3 15c3-3 6 3 9 0s6 3 9 0"/>',
+  people:'<circle cx="9" cy="7" r="3"/><path d="M3 20c0-4 3-6 6-6s6 2 6 6"/><circle cx="17.5" cy="9" r="2.3"/><path d="M16 14c3 0 5.5 2 5.5 5"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  snap:'<path d="M2 9l7 2M15 13l7 2"/><path d="M12 4l-2.5 7h4L11 20"/>',
+  box:'<rect x="4" y="7" width="16" height="12" rx="1.5"/><path d="M4 11h16M10 7v4h4V7"/>',
+  ruler:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  cg:'<circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/>',
+  height:'<path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/>',
+  wheel:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  surf:'<path d="M3 16h18"/><path d="M5 19l2-3M10 19l2-3M15 19l2-3M20 19l1-1.5"/><rect x="8" y="8" width="7" height="7" rx="1"/>',
+  car:'<path d="M3 16v-3l2-4h9l3 4h4v3"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>',
+};
+const svg = (k, vb='0 0 24 24') => `<svg viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k] || k}</svg>`;
+// carrinho em miniatura: quais rodas estão coloridas (tração/freio) e onde está a carga
+function carIco(wheels, wcol, load){
+  const on = w => wheels === '4' || wheels === w;
+  const wheel = (cx, w) => `<circle cx="${cx}" cy="18" r="3.6" fill="${on(w) ? wcol : 'none'}" stroke="currentColor" stroke-width="1.8"/>`;
+  const bx = load === 'R' ? '<rect x="3" y="3" width="8" height="6" rx="1" fill="#d7a663" stroke="#8a5a22" stroke-width="1.3"/>'
+           : load === 'F' ? '<rect x="28" y="6" width="8" height="5" rx="1" fill="#d7a663" stroke="#8a5a22" stroke-width="1.3"/>' : '';
+  return `<svg viewBox="0 0 40 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M2 16v-4l5-6h13l6 6h11v4z"/>${wheel(9,'R')}${wheel(31,'F')}${bx}</svg>`;
+}
+const swatch = c => `<span class="swc" style="background:${c}"></span>`;
+const SURF_COL = { seco:'#30353c', molhado:'#2f5f8f', terra:'#8a6a43', gelo:'#bfe7f5', liso:'#7cc8e8', madeira:'#a0703c', borracha:'#2b2f35' };
+
 // ---------------- ajustes ----------------
-function slider(box, key, lab, mn, mx, st, fmt, hint){
+function head(ic, tone, lab, forId){
+  const t = `<span class="hi" style="color:${tone}">${ic}</span>`;
+  return forId ? `<label for="${forId}">${t}${lab}</label>` : `<span class="hl">${t}${lab}</span>`;
+}
+function slider(box, key, lab, mn, mx, st, fmt, hint, ic='mu', tone='var(--accent)'){
   const d = document.createElement('div'); d.className = 'ctl';
   const id = 'c_'+key;
-  d.innerHTML = `<div class="top"><label for="${id}">${lab}</label><span class="val"></span></div><input id="${id}" type="range" min="${mn}" max="${mx}" step="${st}">${hint?`<div class="hint">${hint}</div>`:''}`;
+  d.innerHTML = `<div class="top">${head(svg(ic), tone, lab, id)}<span class="val" style="color:${tone}"></span></div><input id="${id}" type="range" min="${mn}" max="${mx}" step="${st}" style="accent-color:${tone}">${hint?`<div class="hint">${hint}</div>`:''}`;
   const r = d.querySelector('input'), val = d.querySelector('.val');
   r.value = P[key]; val.textContent = fmt(P[key]);
   r.oninput = () => { P[key] = +r.value; val.textContent = fmt(P[key]); if (!sim.run) fullReset(); };
   box.appendChild(d);
 }
-function buttons(box, lab, opts, cur, onpick){
+// opts: [valor, rótulo, ícone (html), cor]
+function buttons(box, lab, opts, cur, onpick, ic='surf', tone='var(--muted)'){
   const d = document.createElement('div'); d.className = 'ctl';
-  d.innerHTML = `<div class="top"><span>${lab}</span></div><div class="seg">${opts.map(([v,t]) => `<button data-v="${v}" class="${String(cur)===String(v)?'on':''}">${t}</button>`).join('')}</div>`;
+  d.innerHTML = `<div class="top">${head(svg(ic), tone, lab)}</div><div class="seg seg-ico">${opts.map(([v,t,i,c]) =>
+    `<button data-v="${v}" class="${String(cur)===String(v)?'on':''}" style="--tone:${c||'var(--accent)'}"><span class="i">${i||''}</span><span class="tx">${t}</span></button>`).join('')}</div>`;
   d.querySelectorAll('button').forEach(b => b.onclick = () => { onpick(b.dataset.v); buildControls(); if (!sim.run) fullReset(); });
   box.appendChild(d);
 }
+const TONE = { ang:'var(--cMa)', gas:'var(--cF)', mass:'var(--cP)', mu:'var(--cN)', cable:'var(--cT)', dim:'var(--cDim)' };
+const MODE_CAR = [['motor','Acelera',svg('gas'),'var(--cF)'],['neutro','Ponto morto',svg('neutral'),'var(--muted)'],['freio','Freio de mão',svg('park'),'var(--bad)']];
+const driveOpts = names => [['R',names[0],carIco('R','var(--cF)'),'var(--cF)'],['F',names[1],carIco('F','var(--cF)'),'var(--cF)'],['4',names[2],carIco('4','var(--cF)'),'var(--cF)']];
 function buildControls(){
   const box = $('controls'); box.innerHTML = '';
-  slider(box, 'ang', 'Inclinação da rampa', 0, 45, 0.5, v => br(v,1)+'°');
+  slider(box, 'ang', P.tab==='bonde' ? 'Inclinação do cabo' : 'Inclinação da rampa', 0, 45, 0.5, v => br(v,1)+'°', null, 'ang', TONE.ang);
   if (P.tab === 'bloco'){
-    buttons(box, 'Superfície', Object.entries(PISO_BLOCO).map(([k,v]) => [k, v[2]]), P.piso, v => applySet({piso:v}));
-    slider(box, 'mB', 'Massa do bloco', 1, 100, 1, v => v+' kg', 'mude e veja: a massa não decide se ele escorrega');
+    buttons(box, 'Superfície', Object.entries(PISO_BLOCO).map(([k,v]) => [k, v[2], swatch(SURF_COL[k]), SURF_COL[k]]), P.piso, v => applySet({piso:v}), 'surf', TONE.mu);
+    slider(box, 'mB', 'Massa do bloco', 1, 100, 1, v => v+' kg', 'mude e veja: a massa não decide se ele escorrega', 'mass', TONE.mass);
     return;
   }
   if (P.tab === 'bonde'){
-    buttons(box, 'O cabo de tração', [['puxar','Motor puxa'],['segurar','Segura parado'],['romper','Arrebenta']], P.mode, v => P.mode = v);
-    if (P.mode === 'puxar') slider(box, 'T', 'Força no cabo de tração', 0, 60, 0.5, v => br(v,1)+' kN');
-    slider(box, 'pess', 'Passageiros', 0, 60, 1, v => v+' pessoas');
-    const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Cabine de 2000 kg + 75 kg por pessoa, pendurada num carrinho de duas rodas que corre em cima do cabo de apoio.'; box.appendChild(h);
+    buttons(box, 'O cabo de tração', [['puxar','Motor puxa',svg('gear'),'var(--cT)'],['segurar','Segura parado',svg('lock'),'var(--accent)'],['romper','Arrebenta',svg('snap'),'var(--bad)']], P.mode, v => P.mode = v, 'gear', TONE.cable);
+    if (P.mode === 'puxar') slider(box, 'T', 'Força no cabo de tração', 0, 60, 0.5, v => br(v,1)+' kN', null, 'force', TONE.cable);
+    slider(box, 'pess', 'Passageiros', 0, 60, 1, v => v+' pessoas', 'Cabine de 2000 kg + 75 kg por pessoa, pendurada num carrinho de duas rodas que corre em cima do cabo de apoio.', 'people', TONE.mass);
     return;
   }
   if (P.tab === 'carro'){
-    buttons(box, 'O motorista', [['motor','Acelera'],['neutro','Ponto morto'],['freio','Freio de mão']], P.mode, v => P.mode = v);
-    if (P.mode === 'motor') slider(box, 'F', 'Acelerador (força nas rodas)', 0, 10, 0.1, v => br(v,1)+' kN');
-    if (P.mode === 'motor') buttons(box, 'Tração (rodas que puxam)', [['R','Traseira'],['F','Dianteira'],['4','4×4']], P.drive, v => P.drive = v);
-    buttons(box, 'Piso', Object.entries(PISO_CARRO).map(([k,v]) => [k, v[2]]), P.piso, v => applySet({piso:v}));
-    buttons(box, 'Carga extra de 600 kg', Object.entries(CARGA).map(([k,v]) => [k, v[3]]), P.carga, v => applySet({carga:v}));
+    buttons(box, 'O motorista', MODE_CAR, P.mode, v => P.mode = v, 'car', 'var(--text)');
+    if (P.mode === 'motor'){
+      slider(box, 'F', 'Acelerador (força nas rodas)', 0, 10, 0.1, v => br(v,1)+' kN', null, 'gas', TONE.gas);
+      buttons(box, 'Tração (rodas que puxam)', driveOpts(['Traseira','Dianteira','4×4']), P.drive, v => P.drive = v, 'wheel', TONE.gas);
+    }
+    buttons(box, 'Piso', Object.entries(PISO_CARRO).map(([k,v]) => [k, v[2], swatch(SURF_COL[k]), SURF_COL[k]]), P.piso, v => applySet({piso:v}), 'surf', TONE.mu);
+    buttons(box, 'Carga extra de 600 kg', Object.entries(CARGA).map(([k,v]) => [k, v[3], carIco('', '', k === '0' ? '' : k), '#b07a3b']), P.carga, v => applySet({carga:v}), 'box', '#b07a3b');
     const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Carro de 1500 kg. O freio de mão trava as rodas de trás.'; box.appendChild(h);
     return;
   }
-  buttons(box, 'O motorista', [['motor','Força motriz'],['accel','Aceleração a'],['neutro','Ponto morto'],['freio','Freio de mão']], P.mode, v => P.mode = v);
-  if (P.mode === 'motor') slider(box, 'F', 'Força motriz nas rodas', 0, 30, 0.1, v => br(v,1)+' kN');
-  if (P.mode === 'accel') slider(box, 'aDes', 'Aceleração desejada a', -4, 6, 0.01, v => br(v,2)+' m/s²');
-  if (P.mode !== 'freio') buttons(box, 'Tração', [['R','Traseira (A)'],['F','Dianteira (B)'],['4','4×4']], P.drive, v => P.drive = v);
-  else buttons(box, 'Freio trava as rodas', [['R','de trás'],['F','da frente'],['4','todas']], P.brake, v => P.brake = v);
-  slider(box, 'mus', 'μ estático', 0, 1.3, 0.01, v => br(v,2));
-  slider(box, 'muk', 'μ cinético', 0, 1.3, 0.01, v => br(v,2));
-  slider(box, 'mC', 'Massa do carro m', 500, 4000, 50, v => v+' kg');
-  slider(box, 'me', 'Carga extra', 0, 2000, 10, v => v+' kg');
-  slider(box, 'be', 'Posição da carga (0 = eixo traseiro, 1 = dianteiro)', -0.2, 1.2, 0.01, v => br(v,2)+'·L');
-  slider(box, 'he', 'Altura da carga', 0.3, 2, 0.01, v => br(v,2)+' m');
-  slider(box, 'L', 'Entre-eixos L', 2, 4.5, 0.05, v => br(v,2)+' m');
-  slider(box, 'b0', 'CG do carro a partir do eixo traseiro', 0.2, 0.8, 0.01, v => br(v,2)+'·L');
-  slider(box, 'h0', 'Altura do CG do carro h', 0.2, 1.5, 0.01, v => br(v,2)+' m');
+  buttons(box, 'O motorista', [['motor','Força motriz',svg('force'),'var(--cF)'],['accel','Aceleração a',svg('accel'),'var(--cMa)'],['neutro','Ponto morto',svg('neutral'),'var(--muted)'],['freio','Freio de mão',svg('park'),'var(--bad)']], P.mode, v => P.mode = v, 'car', 'var(--text)');
+  if (P.mode === 'motor') slider(box, 'F', 'Força motriz nas rodas', 0, 30, 0.1, v => br(v,1)+' kN', null, 'force', TONE.gas);
+  if (P.mode === 'accel') slider(box, 'aDes', 'Aceleração desejada a', -4, 6, 0.01, v => br(v,2)+' m/s²', null, 'accel', 'var(--cMa)');
+  if (P.mode !== 'freio') buttons(box, 'Tração', driveOpts(['Traseira (A)','Dianteira (B)','4×4']), P.drive, v => P.drive = v, 'wheel', TONE.gas);
+  else buttons(box, 'Freio trava as rodas', [['R','de trás',carIco('R','var(--bad)'),'var(--bad)'],['F','da frente',carIco('F','var(--bad)'),'var(--bad)'],['4','todas',carIco('4','var(--bad)'),'var(--bad)']], P.brake, v => P.brake = v, 'park', 'var(--bad)');
+  slider(box, 'mus', 'μ estático (segura)', 0, 1.3, 0.01, v => br(v,2), null, 'mu', TONE.mu);
+  slider(box, 'muk', 'μ cinético (escorregando)', 0, 1.3, 0.01, v => br(v,2), null, 'mu', TONE.mu);
+  slider(box, 'mC', 'Massa do carro m', 500, 4000, 50, v => v+' kg', null, 'mass', TONE.mass);
+  slider(box, 'me', 'Carga extra', 0, 2000, 10, v => v+' kg', null, 'box', '#b07a3b');
+  slider(box, 'be', 'Posição da carga (0 = eixo traseiro, 1 = dianteiro)', -0.2, 1.2, 0.01, v => br(v,2)+'·L', null, 'box', '#b07a3b');
+  slider(box, 'he', 'Altura da carga', 0.3, 2, 0.01, v => br(v,2)+' m', null, 'height', '#b07a3b');
+  slider(box, 'L', 'Entre-eixos L', 2, 4.5, 0.05, v => br(v,2)+' m', null, 'ruler', TONE.dim);
+  slider(box, 'b0', 'CG do carro a partir do eixo traseiro (b)', 0.2, 0.8, 0.01, v => br(v,2)+'·L', null, 'cg', TONE.dim);
+  slider(box, 'h0', 'Altura do CG do carro h', 0.2, 1.5, 0.01, v => br(v,2)+' m', null, 'height', TONE.dim);
 }
 
 function renderLegend(){
@@ -696,7 +750,7 @@ function draw(){
       ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
       ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.55,0,7); ctx.fillStyle = dr ? C.cF : bk ? C.bad : '#a7b0ba'; ctx.fill();
       ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
-      for (let i=0;i<4;i++){ const an = -sim.wheel + i*Math.PI/2 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.52, c[1]+Math.sin(an)*rp*0.52); ctx.stroke(); }
+      for (let i=0;i<4;i++){ const an = sim.wheel + i*Math.PI/2 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.52, c[1]+Math.sin(an)*rp*0.52); ctx.stroke(); }
       if (prof){ ctx.save(); ctx.font='800 13px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(nm, c[0], c[1]); ctx.restore(); }
       contacts.push(T(...cw(x, 0)));
     });
@@ -800,7 +854,7 @@ function drawBonde(R){
     ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
     ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.5,0,7); ctx.fillStyle='#a7b0ba'; ctx.fill();
     ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
-    for (let i=0;i<3;i++){ const an = -sim.wheel + i*2.094 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.5, c[1]+Math.sin(an)*rp*0.5); ctx.stroke(); } });
+    for (let i=0;i<3;i++){ const an = sim.wheel + i*2.094 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.5, c[1]+Math.sin(an)*rp*0.5); ctx.stroke(); } });
   // cabine pendurada: balança suave até o ângulo da gravidade aparente
   if (sim.phi == null) sim.phi = R.phi; sim.phi += (R.phi - sim.phi)*0.08;
   const pv = T(s+B.Lc/2, -0.5), dir = [Math.sin(sim.phi), Math.cos(sim.phi)];
@@ -859,7 +913,7 @@ function netBox(R){
   const st = stateOf(R), F = R.m*R.a, col = {up:C.ok, down:C.warn, hold:C.accent, bad:C.bad}[st];
   const ico = Math.abs(F) < 1 ? '■' : F > 0 ? '▲' : '▼';
   const txt = Math.abs(F) < 1 ? 'zero: as forças se equilibram' : `${fmtF(Math.abs(F))} ${F > 0 ? 'para CIMA' : 'para BAIXO'} da rampa → a = ${br(Math.abs(R.a))} m/s²`;
-  $('net').style.color = col;
+  $('net').style.color = col; $('net').style.setProperty('--vc', col);
   $('net').innerHTML = `<span class="ico">${ico}</span><span class="lab">Força resultante (m·a): <b>${txt}</b></span>`;
   $('tugDown').classList.toggle('win', R.a < -1e-3); $('tugUp').classList.toggle('win', R.a > 1e-3);
 }
@@ -879,7 +933,7 @@ function panels(R, force){
   else if (v > 0){ t = a < -e ? obj+' sobe, mas vai parar' : obj+' SOBE ↗'; if (a < -e) col = C.warn; }
   else { t = obj+' DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
-  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').dataset.s = stateOf(R); netBox(R);
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').style.setProperty('--vc', col); $('verdict').dataset.s = stateOf(R); netBox(R);
   $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
 
   // cabo de guerra
@@ -935,7 +989,7 @@ function panelsBonde(R){
   else if (v > 0){ t = a < -e ? 'O bondinho sobe, mas vai parar' : 'O bondinho SOBE ↗'; if (a < -e) col = C.warn; }
   else { t = 'O bondinho DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
-  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').dataset.s = stateOf(R); netBox(R);
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').style.setProperty('--vc', col); $('verdict').dataset.s = stateOf(R); netBox(R);
   $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
   const down = R.Wt, up = R.T, sc = Math.max(down, up, 1)*1.08, pct = x => Math.min(100, x/sc*100);
   $('tugDown').style.width = pct(down)+'%'; $('tugDown').textContent = pct(down) > 25 ? fmtF(down) : '';

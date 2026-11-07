@@ -213,8 +213,9 @@ footer a{color:var(--muted)}
       <canvas id="cv" aria-label="Desenho do diagrama de corpo livre"></canvas>
       <div class="verdict"><div id="verdict" role="status"></div></div>
       <div class="toolbar">
-        <button class="btn primary" id="btnPlay">▶ Soltar</button>
-        <button class="btn" id="btnReset">⟲ Voltar ao início</button>
+        <button class="btn primary" id="btnPlay">⏸ Pausar</button>
+        <button class="btn toggle" id="btnExp" title="Separa o corpo do chão e mostra quem faz cada força"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="7" rx="1.5"/><path d="M12 13v3M9 16l3 3 3-3"/><path d="M3 21h18"/></svg><span class="lbl">Desmontar</span></button>
+        <button class="btn" id="btnReset">⟲ Recomeçar</button>
         <button class="btn toggle" id="btnSlow">Câmera lenta</button>
         <span class="readout" id="simInfo"></span>
       </div>
@@ -298,7 +299,7 @@ const EXPS = {
   bloco: [
     ['Sem atrito: sempre desce', {ang:25, piso:'liso', mB:10}, 'Sem atrito nada segura o bloco. <b>Mude a massa</b> e solte de novo: ele desce do mesmo jeito. A aceleração é g·senθ e não depende da massa.'],
     ['O atrito segura', {ang:15, piso:'madeira', mB:10}, 'A ladeira puxa pouco e o atrito aguenta mais do que isso. O bloco fica parado. O atrito só faz a força <b>necessária</b> para segurar.'],
-    ['Ache o ângulo do escorregão', {ang:18, piso:'madeira', mB:10}, '<b>Aumente a inclinação aos poucos</b> e aperte Soltar. Na madeira ele começa a escorregar perto de <b>21,8°</b> (tanθ = μ). Troque para borracha e veja o ângulo subir.'],
+    ['Ache o ângulo do escorregão', {ang:18, piso:'madeira', mB:10}, '<b>Aumente a inclinação aos poucos</b> e observe. Na madeira ele começa a escorregar perto de <b>21,8°</b> (tanθ = μ). Troque para borracha e veja o ângulo subir.'],
     ['Rampa íngreme: escorrega', {ang:35, piso:'madeira', mB:10}, 'A barra vermelha passou do limite do atrito. O bloco escorrega e o atrito diminui (atrito cinético).'],
   ],
   carro: [
@@ -340,7 +341,7 @@ function renderExps(){
   const list = EXPS[P.tab];
   $('exps').innerHTML = list.map(([t, set], i) => { const [o, why] = preview(set);
     return `<button data-i="${i}" class="${expOn===i?'on':''}"><span class="n">${i+1}</span><span class="t">${t}</span><span class="o ${o}">${why}</span></button>`; }).join('');
-  $('obs').innerHTML = expOn == null ? 'Escolha um experimento acima ou mexa nos ajustes e aperte <b>Soltar</b>.' : list[expOn][2];
+  $('obs').innerHTML = expOn == null ? 'Escolha um experimento acima ou mexa nos ajustes: a simulação responde na hora. Use <b>Desmontar</b> para ver quem faz cada força.' : list[expOn][2];
 }
 $('exps').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -566,22 +567,22 @@ const sim = { s:0, v:0, t:0, run:false, stopped:false, msg:'', wheel:0 };
 let VIEW_LEN = null;   // comprimento visível da rampa (m), ajustado ao tamanho da tela
 const rampM = () => VIEW_LEN || (isBlock() ? RAMP_M.bloco : P.tab === 'bonde' ? RAMP_M.bonde : RAMP_M.carro);
 const sRange = () => isBlock() ? [0.1, rampM()-BLOCK-0.1] : P.tab === 'bonde' ? [1, rampM()-BONDE.Lc-1] : [Math.max(0.28*P.L+0.2, 2.4), rampM() - 1.24*P.L - 0.2];
-const parts = [];
-function fullReset(){ const [a,b] = sRange(); sim.s = isBlock() ? b : P.tab === 'bonde' ? a + (b-a)*0.3 : a; sim.phi = null; sim.v = 0; sim.t = 0; sim.msg = ''; sim.stopped = false; sim.run = false; parts.length = 0; playBtn(); }
+// rampa infinita: começa em s = 0, a câmera acompanha e a simulação já roda sozinha
+function fullReset(){ sim.s = 0; sim.phi = null; sim.phiV = 0; sim.v = 0; sim.t = 0; sim.msg = ''; sim.stopped = false; sim.run = true; parts.length = 0; marks.length = 0; CAM.init = false; replayForces(); playBtn(); }
 function step(dt){
-  const R = solve(sim.v), [lo, hi] = sRange();
+  const R = solve(sim.v);
   const v0 = sim.v; let v1 = v0 + R.a*dt;
   if (!R.block && R.kind==='freio' && v0 && Math.sign(v1) !== Math.sign(v0)) v1 = 0;
   if (R.block && v0 < 0 && v1 >= 0) v1 = 0;
   if (R.hold) v1 = 0;
   sim.v = v1; sim.s += (v0+v1)/2*dt; sim.t += dt;
   if (!R.block){ sim.wheel += (v0+v1)/2*dt/(R.bonde ? BONDE.r : P.r); if (R.slip && R.kind!=='freio') sim.wheel += Math.sign(R.F||1)*16*dt; }
-  if (sim.s > hi) sim.s = hi; if (sim.s < lo) sim.s = lo;
-  if (sim.s >= hi && sim.v > 0){ sim.v = 0; sim.run = false; sim.stopped = true; sim.msg = 'chegou ao topo'; playBtn(); }
-  if (sim.s <= lo && sim.v < 0){ sim.v = 0; sim.run = false; sim.stopped = true; sim.msg = 'chegou lá embaixo'; playBtn(); }
+  // recomeça sozinho depois de um tempo, para a observação não "fugir" para longe
+  if (sim.t > 30 || Math.abs(sim.s) > 400) fullReset();
 }
-function playBtn(){ const b = $('btnPlay'); b.textContent = sim.run ? '⏸ Pausar' : (sim.stopped ? '⟲ Soltar de novo' : '▶ Soltar');  }
-$('btnPlay').onclick = () => { if (sim.stopped) fullReset(); sim.run = !sim.run; playBtn(); if (sim.run) track('soltar/' + P.tab); };
+function playBtn(){ const b = $('btnPlay'); b.textContent = sim.run ? '⏸ Pausar' : '▶ Continuar'; }
+$('btnPlay').onclick = () => { sim.run = !sim.run; playBtn(); if (sim.run) track('soltar/' + P.tab); };
+$('btnExp').onclick = () => { setExploded(!FX.exp); if (FX.exp) track('desmontar/' + P.tab); };
 $('btnReset').onclick = fullReset;
 let speed = 1;
 $('btnSlow').onclick = () => { speed = speed === 1 ? 0.35 : 1; $('btnSlow').classList.toggle('on', speed !== 1); };
@@ -661,41 +662,70 @@ function flushTags(){
   ctx.restore(); TAGS = []; OBS = [];
 }
 
-function draw(){
-  const R = solve(sim.v), th = R.th, cs = Math.cos(th), sn = Math.sin(th), prof = P.tab === 'prof';
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  const gr = ctx.createLinearGradient(0,0,0,Hc); gr.addColorStop(0,C.sky1); gr.addColorStop(1,C.sky2);
-  ctx.fillStyle = gr; ctx.fillRect(0,0,Wc,Hc);
-  if (R.bonde){ drawBonde(R); flushTags(); return R; }
-  const y0max = Hc - 130;
-  const Ls = Math.min(Wc - 80, (y0max - 150)/Math.max(Math.sin(th), 0.05));
-  const y0 = Math.min(y0max, Hc*0.52 + Ls*sn/2 + 50);
-  const kMin = R.block ? Ls/RAMP_M.bloco : Math.max(Ls/RAMP_M.carro, Math.min(Wc*0.40/(1.52*P.L), Ls/7));
-  const k = kMin; VIEW_LEN = Ls/k;
-  const x0 = Math.max(24, (Wc - Ls*cs)/2), xt = x0 + Ls*cs, yt = y0 - Ls*sn;
-  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.lineTo(Wc,Hc); ctx.lineTo(0,Hc); ctx.closePath(); ctx.fillStyle = C.ramp; ctx.fill();
-  // hachura de engenharia (símbolo de superfície fixa) logo abaixo da rampa
-  ctx.save(); ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.lineTo(Wc,Hc); ctx.lineTo(0,Hc); ctx.closePath(); ctx.clip();
-  ctx.strokeStyle = C.ramp2; ctx.lineWidth = 1.5; ctx.globalAlpha = .8;
-  const hatch = (ax, ay, bx, by) => { const L2 = Math.hypot(bx-ax, by-ay), ux2 = (bx-ax)/L2, uy2 = (by-ay)/L2; for (let d = 6; d < L2; d += 13){ const px = ax+ux2*d, py = ay+uy2*d; ctx.beginPath(); ctx.moveTo(px, py+3); ctx.lineTo(px-9, py+15); ctx.stroke(); } };
-  hatch(0, y0, x0, y0); hatch(x0, y0, xt, yt); hatch(xt, yt, Wc, yt);
+// ================= cena infinita: câmera, cenário, vista explodida =================
+const REDUCE = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(e){ return false; } })();
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+const clamp01 = t => Math.max(0, Math.min(1, t));
+// FX.t0: início da "entrada" das forças (troca de experimento, aba ou desmontar)
+const FX = { t0: performance.now(), exp: false, e: 0, from: 0, to: 0, et0: 0 };
+function replayForces(){ FX.t0 = performance.now(); }
+function setExploded(on){ FX.exp = on; FX.from = FX.e; FX.to = on ? 1 : 0; FX.et0 = performance.now(); replayForces(); $('btnExp').classList.toggle('on', on); $('btnExp').querySelector('.lbl').textContent = on ? 'Montar de volta' : 'Desmontar'; }
+function fxUpdate(now){
+  const d = REDUCE ? 1 : clamp01((now - FX.et0)/650);
+  FX.e = FX.from + (FX.to - FX.from)*easeInOut(d);
+}
+// fator de entrada da força i (aparece em sequência, ease-out)
+const grow = i => REDUCE ? 1 : easeOut(clamp01((performance.now() - FX.t0 - i*130)/380));
+// decomposição do peso: começa depois das forças principais
+const decomp = () => REDUCE ? 1 : easeInOut(clamp01((performance.now() - FX.t0 - 650)/700));
+
+const CAM = { s: 0, init: false };
+const marks = [];          // marcas de pneu no chão (coordenada ao longo da rampa)
+const parts = [];          // partículas (fumaça, água, poeira) em coordenadas da rampa
+const noise = x => Math.sin(x)*0.5 + Math.sin(x*2.3 + 1.3)*0.3 + Math.sin(x*5.1 + 2.1)*0.15;
+
+// cenário em camadas (paralaxe) — longe mexe pouco, perto mexe mais
+function drawBackdrop(camX, camY, k){
+  // nuvens
+  ctx.save(); ctx.globalAlpha = C.dark ? .12 : .55; ctx.fillStyle = C.dark ? '#c9d6e6' : '#ffffff';
+  for (let i = 0; i < 6; i++){
+    const span = Wc + 360, x = (((i*233 - camX*k*0.04) % span) + span) % span - 180, y = 60 + (i*67 % 110) + camY*k*0.01;
+    ctx.beginPath(); ctx.ellipse(x, y, 70, 20, 0, 0, 7); ctx.ellipse(x+40, y-10, 46, 18, 0, 0, 7); ctx.ellipse(x-38, y-4, 40, 15, 0, 0, 7); ctx.fill();
+  }
   ctx.restore();
-  const surf = surface();
-  ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.strokeStyle = surf.col; ctx.lineWidth = 8; ctx.stroke();
-  if (surf.line){ ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(xt,yt); ctx.strokeStyle = surf.line; ctx.lineWidth = 2; ctx.setLineDash(surf.dash || []); ctx.stroke(); ctx.setLineDash([]); }
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+130,y0); ctx.strokeStyle = C.ramp2; ctx.lineWidth = 2; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.arc(x0,y0,64,-th,0); ctx.closePath(); ctx.fillStyle = C.cMa; ctx.globalAlpha = .18; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.arc(x0,y0,64,-th,0); ctx.strokeStyle = C.cMa; ctx.lineWidth = 3; ctx.stroke();
-  ctx.save(); ctx.font = `800 ${Wc < 600 ? 16 : 22}px "IBM Plex Sans","Segoe UI",sans-serif`; ctx.textBaseline = 'middle';
-  ctx.fillStyle = C.text; ctx.fillText('θ', x0 + 74*Math.cos(th/2) + 4, y0 - 74*Math.sin(th/2) + 2);
-  const at = 'Inclinação θ = '+br(P.ang,1)+'°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
+  // montanhas ao longe e morros
+  const layer = (f, base, amp, freq, col, alpha) => {
+    const off = camX*k*f, lift = Math.max(-140, Math.min(160, camY*k*f*0.35));
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, Hc);
+    for (let px = 0; px <= Wc + 8; px += 8) ctx.lineTo(px, base + lift - amp*(0.6 + noise((px + off)*freq)));
+    ctx.lineTo(Wc, Hc); ctx.closePath(); ctx.fill(); ctx.restore();
+  };
+  layer(0.06, Hc*0.52, 70, 0.004, C.muted, C.dark ? .22 : .18);
+  layer(0.18, Hc*0.62, 46, 0.007, C.ramp2, C.dark ? .35 : .32);
+}
+// pontos da reta y=0 (rampa ou cabo) que cobrem a tela
+function lineSpan(T, ax, k, cs){ const xL = CAM.s + (-80 - ax)/(cs*k), xR = CAM.s + (Wc + 80 - ax)/(cs*k); return [xL, xR]; }
+// referência do ângulo num ponto da reta que esteja visível
+function angleRef(T, ax, ay, k, cs, sn, th, yLine=0){
+  let xs = CAM.s + (70 - ax)/(cs*k), p = T(xs, yLine);
+  if (p[1] > Hc - 80 && sn > 0.01){ xs = CAM.s + (ay - (Hc - 80))/(sn*k); p = T(xs, yLine); }
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + 120, p[1]); ctx.strokeStyle = C.text; ctx.globalAlpha = .55; ctx.lineWidth = 2; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.arc(p[0], p[1], 58, -th, 0); ctx.closePath(); ctx.fillStyle = C.cMa; ctx.globalAlpha = .2; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(p[0], p[1], 58, -th, 0); ctx.strokeStyle = C.cMa; ctx.lineWidth = 3; ctx.stroke();
+  ctx.font = `800 ${Wc < 600 ? 15 : 19}px ${FONT_UI}`; ctx.fillStyle = C.cMa; ctx.textBaseline = 'middle';
+  ctx.fillText('θ', p[0] + 66*Math.cos(th/2) + 2, p[1] - 66*Math.sin(th/2));
+  ctx.restore();
+}
+function chips(surf, label){
+  ctx.save(); ctx.font = `800 ${Wc < 600 ? 15 : 20}px ${FONT_UI}`; ctx.textBaseline = 'middle';
+  const at = label + ' θ = ' + br(P.ang,1) + '°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
   ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(lx, ly, tw+18, 36, 9); ctx.fill(); ctx.globalAlpha = 1;
-  ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18); ctx.restore();
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18);
   OBS.push({x: lx + (tw+18)/2, y: ly + 18, w: tw + 18, h: 36});
-  { // selo do piso: cor + nome (identificável de longe)
-    ctx.save(); ctx.font = `700 ${Wc < 600 ? 12 : 14}px ${FONT_UI}`; ctx.textBaseline = 'middle';
+  if (surf){
+    ctx.font = `700 ${Wc < 600 ? 12 : 14}px ${FONT_UI}`;
     const pt = 'Piso: ' + surf.name, pw = ctx.measureText(pt).width + 40, px = lx + tw + 30, py = ly + 4;
     if (px + pw < Wc - 8){
       ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(px, py, pw, 28, 14); ctx.fill(); ctx.globalAlpha = 1;
@@ -704,80 +734,184 @@ function draw(){
       ctx.fillStyle = C.text; ctx.fillText(pt, px + 28, py + 15);
       OBS.push({x: px + pw/2, y: py + 14, w: pw, h: 28});
     }
-    ctx.restore();
   }
+  ctx.restore();
+}
+// seta que "cresce" (entrada em sequência)
+function garrow(i, x1, y1, x2, y2, col, w, dash){ const g = grow(i); if (g <= 0.01) return 0; arrow(x1, y1, x1 + (x2-x1)*g, y1 + (y2-y1)*g, col, w, dash); return g; }
+function gtag(i, txt, x, y, col, size, sub){ if (grow(i) > 0.55) tag(txt, x, y, col, size, sub); }
+// texto da etiqueta: no modo desmontado mostra QUEM faz a força
+const who = (base, src) => FX.e > 0.5 ? base + ' · ' + src : base;
+// decomposição: componentes crescendo + paralelogramo de construção
+function drawComponents(G, u, n, R, kpx, labels, prof, val){
+  const d = decomp(); if (d <= 0.01) return;
+  const wt = R.Wt*kpx, wn = R.Wn*kpx, Pt = [G[0], G[1] + R.W*kpx];
+  const A = [G[0] - u[0]*wt*d, G[1] - u[1]*wt*d], Bn = [G[0] - n[0]*wn*d, G[1] - n[1]*wn*d];
+  ctx.save(); ctx.globalAlpha = .5*d; ctx.strokeStyle = C.cP; ctx.lineWidth = 1.2; ctx.setLineDash([3,4]);
+  ctx.beginPath(); ctx.moveTo(Pt[0], Pt[1]); ctx.lineTo(G[0] - u[0]*wt, G[1] - u[1]*wt); ctx.moveTo(Pt[0], Pt[1]); ctx.lineTo(G[0] - n[0]*wn, G[1] - n[1]*wn); ctx.stroke(); ctx.restore();
+  if (wt > 8){ arrow(G[0], G[1], A[0], A[1], C.cP, 4, [8,6]);
+    if (d > .7) tag(labels[0], G[0] - u[0]*(wt + (prof ? 36 : 72)), G[1] - u[1]*(wt + (prof ? 36 : 72)) - 14, C.cP, 14, val ? fmtF(R.Wt) : null); }
+  if (labels[1]){ arrow(G[0], G[1], Bn[0], Bn[1], C.cP, 3, [7,6]);
+    if (d > .7) tag(labels[1], G[0] - n[0]*wn + 44, G[1] - n[1]*wn, C.cP, 13, val ? fmtF(R.Wn) : null); }
+}
+// partículas e marcas de pneu (coordenadas da rampa: x ao longo, y normal)
+function emit(x, y, vx, vy, col, size){ if (parts.length < 260) parts.push({x, y, vx, vy, col, size, life: 1}); }
+function drawParticles(T, k, dt){
+  for (let i = parts.length - 1; i >= 0; i--){
+    const p = parts[i]; p.life -= dt*0.9; p.x += p.vx*dt; p.y += p.vy*dt; p.vy -= 1.5*dt;
+    if (p.life <= 0){ parts.splice(i, 1); continue; }
+    const q = T(p.x, p.y); ctx.beginPath(); ctx.arc(q[0], q[1], (1.25 - p.life)*p.size*k, 0, 7);
+    ctx.fillStyle = p.col; ctx.globalAlpha = p.life*.45; ctx.fill(); ctx.globalAlpha = 1;
+  }
+}
+function drawMarks(T, k){
+  ctx.save(); ctx.lineCap = 'round';
+  for (let i = marks.length - 1; i >= 0; i--){ const m = marks[i]; m.life -= 0.004; if (m.life <= 0){ marks.splice(i,1); continue; }
+    const a = T(m.x, 0.02), b = T(m.x + m.len, 0.02); ctx.strokeStyle = '#111'; ctx.globalAlpha = m.life*.55; ctx.lineWidth = Math.max(3, 0.12*k);
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+  ctx.restore();
+}
+// efeito do piso quando a roda gira/escorrega
+function surfaceFx(R, x, moving, slipping){
+  const v = sim.v, back = -Math.sign(v || R.F || 1);
+  // a roda que patina joga fumaça para trás do giro (contra a força de tração)
+  if (slipping && Math.random() < .8) emit(x, 0.15, -Math.sign(R.F || 1)*(1 + Math.random()*2), 0.8 + Math.random(), C.dark ? '#cfd6de' : '#9aa3ad', 0.35);
+  if (!moving) return;
+  const sp = Math.min(1, Math.abs(v)/8);
+  if (P.piso === 'molhado' && Math.random() < sp) emit(x, 0.1, back*(2 + Math.random()*3), 1 + Math.random()*1.5, '#7fb6ff', 0.12);
+  if (P.piso === 'terra' && Math.random() < sp) emit(x, 0.1, back*(1 + Math.random()*2), 0.6 + Math.random(), '#b8925f', 0.3);
+  if (P.piso === 'gelo' && Math.random() < sp*.5) emit(x, 0.05, back*(0.5 + Math.random()), 0.3 + Math.random()*.5, '#ffffff', 0.08);
+}
+
+let lastDraw = performance.now();
+function draw(){
+  const now = performance.now(), dt = Math.min(0.05, (now - lastDraw)/1000); lastDraw = now;
+  fxUpdate(now);
+  const R = solve(sim.v), th = R.th, cs = Math.cos(th), sn = Math.sin(th), prof = P.tab === 'prof';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const gr = ctx.createLinearGradient(0,0,0,Hc); gr.addColorStop(0,C.sky1); gr.addColorStop(1,C.sky2);
+  ctx.fillStyle = gr; ctx.fillRect(0,0,Wc,Hc);
+  if (R.bonde){ drawBonde(R, dt); flushTags(); return R; }
+
+  const L = P.L, r = P.r, B = BLOCK;
+  const k = R.block ? Math.min(Wc*0.17/B, Hc*0.22/B) : Math.min(Wc*0.38/(1.52*L), Hc*0.42/(r*3.6 + 0.6));
+  const ref = R.block ? sim.s + B/2 : sim.s + L/2;
+  if (!CAM.init){ CAM.s = ref; CAM.init = true; }
+  CAM.s += (ref - CAM.s)*Math.min(1, dt*7);
+  const ax = Wc*0.46, ay = Hc - 165;
+  const T = (x,y) => [ax + ((x - CAM.s)*cs - y*sn)*k, ay - ((x - CAM.s)*sn + y*cs)*k];
+  drawBackdrop(CAM.s*cs, CAM.s*sn, k);
+
+  // chão infinito
+  const [xL, xR] = lineSpan(T, ax, k, cs), A0 = T(xL, 0), B0 = T(xR, 0);
+  ctx.beginPath(); ctx.moveTo(A0[0], A0[1]); ctx.lineTo(B0[0], B0[1]); ctx.lineTo(Wc+100, Hc+400); ctx.lineTo(-100, Hc+400); ctx.closePath(); ctx.fillStyle = C.ramp; ctx.fill();
+  ctx.save(); ctx.clip(); ctx.strokeStyle = C.ramp2; ctx.lineWidth = 1.5; ctx.globalAlpha = .8;
+  const hs = 13/k; for (let x = Math.floor(xL/hs)*hs; x < xR; x += hs){ const p = T(x, 0); ctx.beginPath(); ctx.moveTo(p[0], p[1]+3); ctx.lineTo(p[0]-9, p[1]+15); ctx.stroke(); }
+  ctx.restore();
+  const surf = surface();
+  ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(A0[0], A0[1]); ctx.lineTo(B0[0], B0[1]); ctx.strokeStyle = surf.col; ctx.lineWidth = 8; ctx.stroke();
+  if (surf.line){ const dsh = surf.dash || [], per = dsh.reduce((a,b)=>a+b,0) || 1; ctx.beginPath(); ctx.moveTo(A0[0], A0[1]); ctx.lineTo(B0[0], B0[1]); ctx.strokeStyle = surf.line; ctx.lineWidth = 2; ctx.setLineDash(dsh); ctx.lineDashOffset = -(((xL*k) % per) + per) % per; ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset = 0; }
+  // marcos de distância (postes verticais) e placa de inclinação
+  const step5 = R.block ? 1 : 5;
+  ctx.save(); ctx.font = `700 ${Wc < 600 ? 10 : 12}px ${FONT_UI}`; ctx.textAlign = 'center';
+  for (let m = Math.ceil(xL/step5)*step5; m < xR; m += step5){
+    const b = T(m, 0), hgt = (R.block ? 0.35 : 0.9)*k;
+    ctx.strokeStyle = C.text; ctx.globalAlpha = .45; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(b[0], b[1] - hgt); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.panel; ctx.globalAlpha = .85; ctx.beginPath(); ctx.roundRect(b[0]-18, b[1]-hgt-16, 36, 15, 4); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = C.muted; ctx.fillText(m + ' m', b[0], b[1] - hgt - 5);
+    if (!R.block && ((m % 50) + 50) % 50 === 25 && P.ang > 0){
+      const s0 = [b[0] + 26, b[1] - hgt - 6]; ctx.fillStyle = '#ffcf33'; ctx.beginPath(); ctx.moveTo(s0[0], s0[1]-22); ctx.lineTo(s0[0]+22, s0[1]); ctx.lineTo(s0[0], s0[1]+22); ctx.lineTo(s0[0]-22, s0[1]); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#1a1a1a'; ctx.fillText(Math.round(Math.tan(th)*100) + '%', s0[0], s0[1] + 4);
+    }
+  }
+  ctx.restore();
+  drawMarks(T, k);
+  angleRef(T, ax, ay, k, cs, sn, th);
+  chips(surf, 'Inclinação');
 
   const u = [cs, -sn], n = [-sn, -cs];
-  const T = (x,y) => [x0 + (x*cs - y*sn)*k, y0 - (x*sn + y*cs)*k];
-  const poly = (pts, fill, stroke, lw=2) => { ctx.beginPath(); pts.forEach((p,i)=>{ const q=T(p[0],p[1]); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }); ctx.closePath(); if (fill){ ctx.fillStyle=fill; ctx.fill(); } if (stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); } };
+  const e = FX.e, lift = e*0.55;   // vista explodida: o corpo sobe e se separa do chão
+  const poly = (pts, fill, stroke, lw=2) => { ctx.beginPath(); pts.forEach((p,i)=>{ const q=T(p[0],p[1]); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }); ctx.closePath();
+    if (fill){ ctx.globalAlpha = 1 - 0.72*e; ctx.fillStyle=fill; ctx.fill(); ctx.globalAlpha = 1; }
+    if (stroke){ ctx.strokeStyle = e > 0.05 ? C.accent : stroke; ctx.lineWidth=lw; if (e > 0.05) ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]); } };
   const kpx = 125 / R.W;
   const val = prof && sh.val;
   const lbl = (stuTxt, profTxt) => prof ? profTxt : stuTxt;
   const comp = prof ? sh.comp : true;
   const friCol = R.slip ? C.bad : C.cF;
   let G;
+  // reações no chão (3ª lei de Newton), só no modo desmontado
+  const reaction = (c0, vx, vy, col) => { if (e < 0.3) return; ctx.save(); ctx.globalAlpha = (e - 0.3)/0.7*0.45; arrow(c0[0], c0[1], c0[0] + vx, c0[1] + vy, col, 3, [5,5]); ctx.restore(); };
 
   if (R.block){
-    const s = sim.s, B = BLOCK;
-    poly([[s,0],[s+B,0],[s+B,B],[s,B]], C.crate, C.crate2, 3);
-    ctx.save(); ctx.strokeStyle = C.crate2; ctx.lineWidth = 2; ctx.globalAlpha = .45;
-    let a1=T(s,0), a2=T(s+B,B); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke();
-    a1=T(s+B,0); a2=T(s,B); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke(); ctx.restore();
-    G = T(s+B/2, B/2);
-    const cB = T(s+B/2, 0);
+    const s = sim.s;
+    poly([[s,lift],[s+B,lift],[s+B,B+lift],[s,B+lift]], C.crate, C.crate2, 3);
+    ctx.save(); ctx.strokeStyle = C.crate2; ctx.lineWidth = 2; ctx.globalAlpha = .45*(1-e);
+    let a1=T(s,lift), a2=T(s+B,B+lift); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke();
+    a1=T(s+B,lift); a2=T(s,B+lift); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke(); ctx.restore();
+    G = T(s+B/2, B/2+lift);
+    const cB = T(s+B/2, lift), g0 = T(s+B/2, 0);
     OBS.push({x:G[0], y:G[1], w:B*k*1.1, h:B*k*1.1});
-    arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
-    tag('Peso', G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
-    if (R.Wt*kpx > 8){
-      arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
-      tag('Puxa rampa abaixo', G[0]-u[0]*(R.Wt*kpx+70), G[1]-u[1]*(R.Wt*kpx+70)-14, C.cP, 14);
-    }
-    arrow(cB[0], cB[1], cB[0]+n[0]*R.N*kpx*0.95, cB[1]+n[1]*R.N*kpx*0.95, C.cN);
-    tag('Normal', cB[0]+n[0]*(R.N*kpx+20), cB[1]+n[1]*(R.N*kpx+20), C.cN, 16);
+    if (sim.run && Math.abs(sim.v) > 0.05 && P.piso === 'madeira' && Math.random() < .3) emit(s + (sim.v < 0 ? B : 0), 0.05, -Math.sign(sim.v)*0.5, 0.4, '#c79a62', 0.12);
+    garrow(0, G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+    gtag(0, who('Peso', 'a Terra puxa'), G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
+    drawComponents(G, u, n, R, kpx, ['Puxa rampa abaixo', null], false, false);
+    garrow(1, cB[0], cB[1], cB[0]+n[0]*R.N*kpx*0.95, cB[1]+n[1]*R.N*kpx*0.95, C.cN);
+    gtag(1, who('Normal', 'o chão empurra'), cB[0]+n[0]*(R.N*kpx+20), cB[1]+n[1]*(R.N*kpx+20), C.cN, 16);
+    reaction(g0, -n[0]*R.N*kpx*0.6, -n[1]*R.N*kpx*0.6, C.cN);
     if (R.F > 0.5){
-      const c0 = T(s+B, 0.03);
-      arrow(c0[0], c0[1], c0[0]+u[0]*R.F*kpx, c0[1]+u[1]*R.F*kpx, friCol, 7);
-      tag('Atrito', c0[0]+u[0]*(R.F*kpx/2)-n[0]*30, c0[1]+u[1]*(R.F*kpx/2)-n[1]*30, friCol, 16);
+      const c0 = T(s+B, 0.03+lift);
+      garrow(2, c0[0], c0[1], c0[0]+u[0]*R.F*kpx, c0[1]+u[1]*R.F*kpx, friCol, 7);
+      gtag(2, who('Atrito', 'o chão segura'), c0[0]+u[0]*(R.F*kpx/2)-n[0]*30, c0[1]+u[1]*(R.F*kpx/2)-n[1]*30, friCol, 16);
+      reaction(T(s+B, 0), -u[0]*R.F*kpx*0.6, -u[1]*R.F*kpx*0.6, friCol);
     }
   } else {
-    const L = P.L, r = P.r, ovR = 0.28*L, ovF = 0.24*L, s = sim.s;
-    const cw = (x,y) => [s+x, y];
+    const ovR = 0.28*L, ovF = 0.24*L, s = sim.s;
+    const cw = (x,y) => [s+x, y+lift];
+    const drivenA = R.kind==='tracao' && P.drive!=='F', drivenB = R.kind==='tracao' && P.drive!=='R';
+    const brA = R.kind==='freio' && P.brake!=='F', brB = R.kind==='freio' && P.brake!=='R';
+    // efeitos do piso e marcas de pneu
+    if (sim.run){
+      const moving = Math.abs(sim.v) > 0.3;
+      [[0, drivenA || brA], [L, drivenB || brB]].forEach(([x, act]) => {
+        surfaceFx(R, s + x, moving, R.slip && act);
+        if (R.slip && act && Math.random() < .5) marks.push({x: s + x - 0.15, len: 0.3, life: 1});
+      });
+      if (marks.length > 500) marks.splice(0, marks.length - 500);
+    }
+    drawParticles(T, k, sim.run ? dt*speed : 0);
     poly([[-ovR, r*0.55],[L+ovF, r*0.55],[L+ovF, r*1.75],[L*0.80, r*2.05],[L*0.62, r*2.15],[L*0.47, r*3.55],[L*0.05, r*3.6],[-ovR+0.05, r*2.4],[-ovR, r*2.2]].map(p=>cw(...p)), C.car, C.car2, 2.5);
     poly([[L*0.12, r*2.3],[L*0.58, r*2.3],[L*0.45, r*3.35],[L*0.10, r*3.4]].map(p=>cw(...p)), C.glass, null);
     { const pts = [[-ovR, r*0.55],[L+ovF, r*0.55],[L+ovF, r*1.75],[L*0.47, r*3.55],[L*0.05, r*3.6],[-ovR, r*2.2]].map(p=>T(...cw(...p)));
       const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]), x1 = Math.min(...xs), x2 = Math.max(...xs), y1 = Math.min(...ys), y2 = Math.max(...ys);
-      OBS.push({x:(x1+x2)/2, y:(y1+y2)/2, w:(x2-x1)*0.86, h:(y2-y1)*0.8}); }
-    let q = T(...cw(L+ovF-0.06, r*1.45)); ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill();
-    q = T(...cw(-ovR+0.06, r*1.6)); ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill();
+      OBS.push({x:(x1+x2)/2, y:(y1+y2)/2, w:(x2-x1)*0.86, h:(y2-y1)*0.8});
+      if (e > 0.6) tag(prof ? 'Corpo isolado (DCL)' : 'Corpo isolado: só o carro e as forças nele', (x1+x2)/2, y1 - 26, C.accent, 14); }
+    if (e < 0.5){ let q = T(...cw(L+ovF-0.06, r*1.45)); ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill();
+      q = T(...cw(-ovR+0.06, r*1.6)); ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill(); }
     if (P.me > 0){
       const sz = 0.3 + 0.45*Math.sqrt(P.me/2000), cx = P.be*L, cy = Math.max(P.he, r*2.2 + sz/2);
       poly([[cx-sz/2,cy-sz/2],[cx+sz/2,cy-sz/2],[cx+sz/2,cy+sz/2],[cx-sz/2,cy+sz/2]].map(p=>cw(...p)), C.crate, C.crate2, 2);
-      const c = T(...cw(cx,cy)); ctx.save(); ctx.font='800 12px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle='#3b2410'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(P.me+' kg', c[0], c[1]); ctx.restore();
+      const c = T(...cw(cx,cy)); ctx.save(); ctx.font=`800 12px ${FONT_UI}`; ctx.fillStyle='#3b2410'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(P.me+' kg', c[0], c[1]); ctx.restore();
     }
-    const drivenA = R.kind==='tracao' && P.drive!=='F', drivenB = R.kind==='tracao' && P.drive!=='R';
-    const brA = R.kind==='freio' && P.brake!=='F', brB = R.kind==='freio' && P.brake!=='R';
-    const contacts = [];
+    const contacts = [], grounds = [];
     [[0, drivenA, brA, 'A'], [L, drivenB, brB, 'B']].forEach(([x, dr, bk, nm]) => {
       const c = T(...cw(x, r)), rp = r*k;
+      ctx.globalAlpha = 1 - 0.6*e;
       ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
       ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.55,0,7); ctx.fillStyle = dr ? C.cF : bk ? C.bad : '#a7b0ba'; ctx.fill();
       ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
       for (let i=0;i<4;i++){ const an = sim.wheel + i*Math.PI/2 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.52, c[1]+Math.sin(an)*rp*0.52); ctx.stroke(); }
-      if (prof){ ctx.save(); ctx.font='800 13px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(nm, c[0], c[1]); ctx.restore(); }
-      contacts.push(T(...cw(x, 0)));
+      ctx.globalAlpha = 1;
+      if (e > 0.05){ ctx.save(); ctx.strokeStyle = C.accent; ctx.setLineDash([5,4]); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.stroke(); ctx.restore(); }
+      if (prof){ ctx.save(); ctx.font=`800 13px ${FONT_UI}`; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(nm, c[0], c[1]); ctx.restore(); }
+      contacts.push(T(...cw(x, 0))); grounds.push(T(s + x, 0));
     });
-    if (R.slip && sim.run){
-      [[0, drivenA||brA],[L, drivenB||brB]].forEach(([x,on]) => { if (on && Math.random()<.7) parts.push({p:T(...cw(x - Math.sign(R.F||1)*r*0.7, 0.1)), vx:-Math.sign(R.F||1)*(10+Math.random()*30), vy:-20-Math.random()*30, life:1}); });
-    }
-    for (let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.life-=0.02; p.p[0]+=p.vx*0.016; p.p[1]+=p.vy*0.016; if (p.life<=0){ parts.splice(i,1); continue; }
-      ctx.beginPath(); ctx.arc(p.p[0],p.p[1],(1.4-p.life)*16,0,7); ctx.fillStyle=`rgba(150,150,150,${p.life*.35})`; ctx.fill(); }
     G = T(...cw(R.b, R.h));
-    if (prof && sh.dim){
+    if (prof && sh.dim && e < 0.3){
       const yd = -0.55, A1 = T(...cw(0,yd)), G1 = T(...cw(R.b,yd)), B1 = T(...cw(L,yd));
       ctx.save(); ctx.strokeStyle = C.cDim; ctx.lineWidth = 1.5; ctx.setLineDash([4,4]);
       [[0,0],[R.b,R.h],[L,0]].forEach(([x,y]) => { const a=T(...cw(x,y)), b=T(...cw(x,yd-0.12)); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); });
       ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(A1[0],A1[1]); ctx.lineTo(B1[0],B1[1]); ctx.stroke();
-      ctx.font='700 13px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle=C.cDim; ctx.textAlign='center';
       tag('b = '+br(R.b)+' m', (A1[0]+G1[0])/2, (A1[1]+G1[1])/2+20, C.cDim, 13);
       tag('L−b = '+br(L-R.b)+' m', (G1[0]+B1[0])/2, (G1[1]+B1[1])/2+20, C.cDim, 13);
       const h1 = T(...cw(-ovR-0.35, 0)), h2 = T(...cw(-ovR-0.35, R.h));
@@ -786,30 +920,26 @@ function draw(){
       tag('h = '+br(R.h)+' m', (h1[0]+h2[0])/2 - 44, (h1[1]+h2[1])/2, C.cDim, 13);
       ctx.restore();
     }
-    arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
-    tag(lbl('Peso','P'), G[0]+(prof?24:40), G[1]+R.W*kpx-8, C.cP, 16, val?fmtF(R.W):null);
-    if (comp && R.Wt*kpx > 8){
-      arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
-      tag(lbl('Puxa rampa abaixo','P·senθ'), G[0]-u[0]*(R.Wt*kpx+(prof?36:72)), G[1]-u[1]*(R.Wt*kpx+(prof?36:72)) - 14, C.cP, 14, val?fmtF(R.Wt):null);
-    }
-    if (prof && comp){
-      arrow(G[0],G[1], G[0]-n[0]*R.Wn*kpx, G[1]-n[1]*R.Wn*kpx, C.cP, 3, [7,6]);
-      tag('P·cosθ', G[0]-n[0]*R.Wn*kpx + 44, G[1]-n[1]*R.Wn*kpx + 4, C.cP, 13, val?fmtF(R.Wn):null);
-    }
-    [[contacts[0], R.Na, lbl('Normal','N_A')], [contacts[1], R.Nb, lbl('Normal','N_B')]].forEach(([c, N, nm]) => {
+    garrow(0, G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+    gtag(0, who(lbl('Peso','P'), 'a Terra puxa'), G[0]+(prof?24:40), G[1]+R.W*kpx-8, C.cP, 16, val?fmtF(R.W):null);
+    if (comp) drawComponents(G, u, n, R, kpx, [lbl('Puxa rampa abaixo','P·senθ'), prof ? 'P·cosθ' : null], prof, val);
+    [[contacts[0], grounds[0], R.Na, lbl('Normal','N_A')], [contacts[1], grounds[1], R.Nb, lbl('Normal','N_B')]].forEach(([c, g0, N, nm], i) => {
       const len = Math.max(0, N)*kpx, col = N < 0 ? C.bad : C.cN;
-      arrow(c[0]-n[0]*len, c[1]-n[1]*len, c[0], c[1], col);
-      tag(nm, c[0]-n[0]*(len+16), c[1]-n[1]*(len+16), col, 15, val?fmtF(N):null);
+      garrow(1 + i, c[0]-n[0]*len, c[1]-n[1]*len, c[0], c[1], col);
+      gtag(1 + i, who(nm, 'o chão empurra'), c[0]-n[0]*(len+16), c[1]-n[1]*(len+16), col, 15, val?fmtF(N):null);
+      reaction(g0, n[0]*len*0.55, n[1]*len*0.55, col);
     });
-    [[contacts[0], R.Fa], [contacts[1], R.Fb]].forEach(([c, F]) => {
+    [[contacts[0], grounds[0], R.Fa], [contacts[1], grounds[1], R.Fb]].forEach(([c, g0, F]) => {
       if (Math.abs(F) < 1) return; const len = F*kpx;
-      arrow(c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, friCol, 7);
+      garrow(3, c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, friCol, 7);
       const off = len/2 + Math.sign(len)*12;
-      tag(lbl('Atrito','F_at'), c[0]+u[0]*off - n[0]*32, c[1]+u[1]*off - n[1]*32, friCol, 15, val?fmtF(Math.abs(F)):null);
+      gtag(3, who(lbl('Atrito','F_at'), R.kind === 'freio' ? 'o chão segura' : 'o chão empurra o pneu'), c[0]+u[0]*off - n[0]*32, c[1]+u[1]*off - n[1]*32, friCol, 15, val?fmtF(Math.abs(F)):null);
+      reaction(g0, -u[0]*len*0.6, -u[1]*len*0.6, friCol);
     });
+    if (e > 0.6) tag(prof ? 'reações no chão (3ª lei)' : 'o carro empurra o chão de volta (3ª lei)', grounds[0][0] - 70, grounds[0][1] + 34, C.muted, 12);
     if (prof && sh.ma && Math.abs(R.a) > 1e-3){
-      const len = R.m*R.a*kpx; arrow(G[0],G[1], G[0]+u[0]*len, G[1]+u[1]*len, C.cMa, 4, [9,6]);
-      tag('m·a', G[0]+u[0]*(len+Math.sign(len)*32), G[1]+u[1]*(len+Math.sign(len)*32) - 14, C.cMa, 14, val?fmtF(R.m*R.a):null);
+      const len = R.m*R.a*kpx; garrow(4, G[0],G[1], G[0]+u[0]*len, G[1]+u[1]*len, C.cMa, 4, [9,6]);
+      gtag(4, 'm·a', G[0]+u[0]*(len+Math.sign(len)*32), G[1]+u[1]*(len+Math.sign(len)*32) - 14, C.cMa, 14, val?fmtF(R.m*R.a):null);
     }
     if (prof && sh.mom){
       const Ms = [R.MB, R.MA, R.MF], Mx = Math.max(1, ...Ms.map(Math.abs));
@@ -818,9 +948,8 @@ function draw(){
         const ex=G[0]+Math.cos(en)*rr, ey=G[1]+Math.sin(en)*rr, d=ccw?-1:1, tx=-Math.sin(en)*d, ty=Math.cos(en)*d; arrow(ex-tx*7,ey-ty*7,ex+tx*3,ey+ty*3,C.cM,2.5); });
     }
   }
-  ctx.save(); ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.fillStyle='#fff'; ctx.fill();
-  ctx.fillStyle='#111'; ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,0,Math.PI/2); ctx.fill(); ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,Math.PI,Math.PI*1.5); ctx.fill();
-  ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  if (R.block) drawParticles(T, k, sim.run ? dt*speed : 0);
+  cgMark(G);
   flushTags();
   return R;
 }
@@ -829,77 +958,86 @@ function cgMark(G){
   ctx.fillStyle='#111'; ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,0,Math.PI/2); ctx.fill(); ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,Math.PI,Math.PI*1.5); ctx.fill();
   ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
 }
-function drawBonde(R){
+function drawBonde(R, dt){
   const th = R.th, cs = Math.cos(th), sn = Math.sin(th), B = BONDE;
-  const ground = Hc - 36, y0 = Hc - 215;
-  const Ls = Math.min(Wc - 160, (y0 - 70)/Math.max(Math.sin(th), 0.05));
-  const k = Math.max(Ls/RAMP_M.bonde, Math.min(Wc*0.17/BONDE.W, Ls/9)); VIEW_LEN = Ls/k;
-  const x0 = Math.max(80, (Wc - Ls*cs)/2);
-  const T = (x,y) => [x0 + (x*cs - y*sn)*k, y0 - (x*sn + y*cs)*k];
-  const u = [cs, -sn], n = [-sn, -cs];
-  const rm = VIEW_LEN, [xt, yt] = T(rm, 0), [xb, yb] = T(0, 0);
-  // encosta paralela ao cabo (abaixo da cabine), estações nas pontas
   const off = B.D + B.H + 1.1;
-  const xg = sn > 0.02 ? ((y0 - ground)/k + off*cs)/sn : -50;
-  const tTop = T(rm + 1.2, -off), tBot = T(xg, -off);
-  ctx.fillStyle = C.ramp;
-  ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(Math.max(0, tBot[0]), ground); ctx.lineTo(tTop[0], tTop[1]); ctx.lineTo(Wc, tTop[1]); ctx.lineTo(Wc, Hc); ctx.lineTo(0, Hc); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = C.ramp2; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(Math.max(0, tBot[0]), ground); ctx.lineTo(tTop[0], tTop[1]); ctx.lineTo(Wc, tTop[1]); ctx.stroke();
-  const station = (x1, x2, ytop, ybot) => { ctx.fillStyle = C.ramp2; ctx.fillRect(x1, ytop, x2-x1, ybot-ytop);
-    ctx.fillStyle = C.road; ctx.beginPath(); ctx.moveTo(x1-6, ytop); ctx.lineTo((x1+x2)/2, ytop-14); ctx.lineTo(x2+6, ytop); ctx.closePath(); ctx.fill(); };
-  station(xb-64, xb-8, yb-12, ground);
-  station(xt+8, xt+76, yt-12, tTop[1] + 2);
+  const ay = Hc*0.36, k = Math.min(Wc*0.15/B.W, (Hc - ay - 175)/(0.5 + B.D + B.H));
+  const ref = sim.s + B.Lc/2;
+  if (!CAM.init){ CAM.s = ref; CAM.init = true; }
+  CAM.s += (ref - CAM.s)*Math.min(1, dt*7);
+  const ax = Wc*0.46;
+  const T = (x,y) => [ax + ((x - CAM.s)*cs - y*sn)*k, ay - ((x - CAM.s)*sn + y*cs)*k];
+  const u = [cs, -sn], n = [-sn, -cs];
+  drawBackdrop(CAM.s*cs, CAM.s*sn, k);
+  const [xL, xR] = lineSpan(T, ax, k, cs);
+  // encosta infinita paralela ao cabo, abaixo da cabine
+  const g1 = T(xL - 5, -off), g2 = T(xR + 5, -off);
+  ctx.beginPath(); ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]); ctx.lineTo(Wc+100, Hc+400); ctx.lineTo(-100, Hc+400); ctx.closePath(); ctx.fillStyle = C.ramp; ctx.fill();
+  ctx.strokeStyle = C.ramp2; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(g1[0], g1[1]); ctx.lineTo(g2[0], g2[1]); ctx.stroke();
+  // torres a cada 30 m (atrás do bondinho)
+  const tanT = Math.tan(th);
+  ctx.save(); ctx.globalAlpha = .55; ctx.strokeStyle = C.cDim; ctx.lineWidth = 2;
+  for (let m = Math.ceil((xL - 10)/30)*30; m < xR + 10; m += 30){
+    const b = T(m, -off), t = T(m + off*tanT, 0), w = 0.6*k;
+    ctx.beginPath(); ctx.moveTo(b[0]-w, b[1]); ctx.lineTo(t[0]-w*0.3, t[1]+6); ctx.moveTo(b[0]+w, b[1]); ctx.lineTo(t[0]+w*0.3, t[1]+6); ctx.stroke();
+    for (let j = 1; j < 6; j++){ const f = j/6, yA = b[1] + (t[1]-b[1])*f, xA = b[0] + (t[0]-b[0])*f, wA = w*(1 - 0.7*f); ctx.beginPath(); ctx.moveTo(xA - wA, yA); ctx.lineTo(xA + wA, yA - (t[1]-b[1])/6*-1); ctx.stroke(); }
+    ctx.fillStyle = C.cDim; ctx.fillRect(t[0]-0.5*k, t[1]+4, k, 6);
+  }
+  ctx.restore();
+  // marcos de distância no cabo
+  ctx.save(); ctx.font = `700 ${Wc < 600 ? 10 : 12}px ${FONT_UI}`; ctx.textAlign = 'center';
+  for (let m = Math.ceil(xL/5)*5; m < xR; m += 5){ const p = T(m, 0); ctx.fillStyle = C.panel; ctx.globalAlpha = .8; ctx.beginPath(); ctx.roundRect(p[0]-18, p[1]-30, 36, 15, 4); ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = C.muted; ctx.fillText(m + ' m', p[0], p[1]-19); }
+  ctx.restore();
+  angleRef(T, ax, ay, k, cs, sn, th);
+  const e = FX.e, lift = e*0.6, s = sim.s, yh = B.e - 0.5;
   // cabo de apoio e cabo de tração
-  let p = T(-1.2, 0), q = T(rm+1.2, 0);
-  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
-  const s = sim.s, yh = B.e - 0.5;
+  const c1 = T(xL, 0), c2 = T(xR, 0);
+  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(c1[0],c1[1]); ctx.lineTo(c2[0],c2[1]); ctx.stroke();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = C.cT; p = T(s+B.Lc+0.25, yh); q = T(rm+1.2, yh); ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
-  ctx.strokeStyle = C.muted; p = T(-1.2, yh); q = T(s-0.25, yh); ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
-  // carrinho
-  const plate = [[s-0.25,-0.5],[s+B.Lc+0.25,-0.5],[s+B.Lc+0.25,0.12],[s-0.25,0.12]];
+  let p = T(s+B.Lc+0.25, yh+lift), q = T(xR, yh); ctx.strokeStyle = C.cT; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  p = T(xL, yh); q = T(s-0.25, yh+lift); ctx.strokeStyle = C.muted; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  // carrinho (sobe junto no modo desmontado)
+  const plate = [[s-0.25,-0.5+lift],[s+B.Lc+0.25,-0.5+lift],[s+B.Lc+0.25,0.12+lift],[s-0.25,0.12+lift]];
   ctx.beginPath(); plate.forEach((pt,i)=>{ const c=T(...pt); i?ctx.lineTo(c[0],c[1]):ctx.moveTo(c[0],c[1]); }); ctx.closePath();
-  ctx.fillStyle = C.cDim; ctx.fill(); ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.stroke();
-  p = T(-1.2, 0); q = T(rm+1.2, 0);
-  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
-  [0, B.Lc].forEach(x => { const c = T(s+x, B.r), rp = B.r*k;
-    ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
+  ctx.globalAlpha = 1 - 0.7*e; ctx.fillStyle = C.cDim; ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = e > .05 ? C.accent : C.text; ctx.lineWidth = 1.5; if (e > .05) ctx.setLineDash([6,4]); ctx.stroke(); ctx.setLineDash([]);
+  [0, B.Lc].forEach(x => { const c = T(s+x, B.r+lift), rp = B.r*k;
+    ctx.globalAlpha = 1 - 0.6*e; ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
     ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.5,0,7); ctx.fillStyle='#a7b0ba'; ctx.fill();
     ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
-    for (let i=0;i<3;i++){ const an = sim.wheel + i*2.094 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.5, c[1]+Math.sin(an)*rp*0.5); ctx.stroke(); } });
-  // cabine pendurada: balança suave até o ângulo da gravidade aparente
-  if (sim.phi == null) sim.phi = R.phi; sim.phi += (R.phi - sim.phi)*0.08;
-  const pv = T(s+B.Lc/2, -0.5), dir = [Math.sin(sim.phi), Math.cos(sim.phi)];
+    for (let i=0;i<3;i++){ const an = sim.wheel + i*2.094 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.5, c[1]+Math.sin(an)*rp*0.5); ctx.stroke(); }
+    ctx.globalAlpha = 1; });
+  // cabine pendurada: balança como pêndulo (mola amortecida até o ângulo da gravidade aparente)
+  if (sim.phi == null){ sim.phi = R.phi; sim.phiV = 0; }
+  if (REDUCE) sim.phi = R.phi; else { sim.phiV += ((R.phi - sim.phi)*18 - sim.phiV*3.2)*dt; sim.phi += sim.phiV*dt; }
+  const pv = T(s+B.Lc/2, -0.5+lift), dir = [Math.sin(sim.phi), Math.cos(sim.phi)];
   const G = [pv[0] + dir[0]*B.D*k, pv[1] + dir[1]*B.D*k];
   const top = [G[0] - dir[0]*B.H/2*k, G[1] - dir[1]*B.H/2*k];
   ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(pv[0],pv[1]); ctx.lineTo(top[0],top[1]); ctx.stroke();
   ctx.beginPath(); ctx.arc(pv[0],pv[1],4,0,7); ctx.fillStyle = C.text; ctx.fill();
   ctx.save(); ctx.translate(G[0], G[1]); ctx.rotate(-sim.phi);
-  const cw = B.W*k, ch = B.H*k;
-  ctx.fillStyle = C.car; ctx.strokeStyle = C.car2; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 10); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = C.glass; ctx.globalAlpha = .75; ctx.beginPath(); ctx.roundRect(-cw/2+6, -ch/2+6, cw-12, ch*0.42, 6); ctx.fill(); ctx.globalAlpha = 1;
-  const nShow = Math.min(P.pess, 8), pr = Math.min(ch*0.06, (cw-24)/24);
-  for (let i = 0; i < nShow; i++){ const px = -cw/2 + 12 + (i+0.5)*(cw-24)/8; ctx.fillStyle = '#4a3220'; ctx.beginPath(); ctx.arc(px, -ch/2 + 6 + ch*0.24, pr, 0, 7); ctx.fill(); ctx.fillRect(px - pr, -ch/2 + 6 + ch*0.24 + pr, pr*2, ch*0.12); }
+  const cwd = B.W*k, ch = B.H*k;
+  ctx.globalAlpha = 1 - 0.7*e; ctx.fillStyle = C.car; ctx.beginPath(); ctx.roundRect(-cwd/2, -ch/2, cwd, ch, 10); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = e > .05 ? C.accent : C.car2; ctx.lineWidth = 2.5; if (e > .05) ctx.setLineDash([7,5]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.globalAlpha = (1 - 0.7*e)*.75; ctx.fillStyle = C.glass; ctx.beginPath(); ctx.roundRect(-cwd/2+6, -ch/2+6, cwd-12, ch*0.42, 6); ctx.fill(); ctx.globalAlpha = 1 - 0.7*e;
+  const nShow = Math.min(P.pess, 8), pr = Math.min(ch*0.06, (cwd-24)/24);
+  for (let i = 0; i < nShow; i++){ const px = -cwd/2 + 12 + (i+0.5)*(cwd-24)/8; ctx.fillStyle = '#4a3220'; ctx.beginPath(); ctx.arc(px, -ch/2 + 6 + ch*0.24, pr, 0, 7); ctx.fill(); ctx.fillRect(px - pr, -ch/2 + 6 + ch*0.24 + pr, pr*2, ch*0.12); }
   ctx.restore();
-  OBS.push({x:G[0], y:G[1], w:cw*1.05, h:ch*1.05});
+  OBS.push({x:G[0], y:G[1], w:cwd*1.05, h:ch*1.05});
+  if (e > 0.6) tag('Corpo isolado: carrinho + cabine', G[0], G[1] + ch/2 + 26, C.accent, 14);
   // forças
   const kpx = 125 / R.W;
-  arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
-  tag('Peso', G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
-  if (R.Wt*kpx > 8){ arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
-    tag('Puxa cabo abaixo', G[0]-u[0]*(R.Wt*kpx+66), G[1]-u[1]*(R.Wt*kpx+66), C.cP, 14); }
-  [[0, R.Na], [B.Lc, R.Nb]].forEach(([x, N]) => { const c = T(s+x, 0), len = Math.max(0,N)*kpx, col = N < 0 ? C.bad : C.cN;
-    arrow(c[0], c[1], c[0]+n[0]*len, c[1]+n[1]*len, col);
-    tag('Normal', c[0]+n[0]*(len+16), c[1]+n[1]*(len+16), col, 14); });
-  if (R.T > 1){ const c = T(s+B.Lc+0.25, yh), len = R.T*kpx;
-    arrow(c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, C.cT, 7);
-    tag('Cabo puxa', c[0]+u[0]*(len+44), c[1]+u[1]*(len+44) - 6, C.cT, 15); }
+  garrow(0, G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+  gtag(0, who('Peso', 'a Terra puxa'), G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
+  drawComponents(G, u, n, R, kpx, ['Puxa cabo abaixo', null], false, false);
+  [[0, R.Na], [B.Lc, R.Nb]].forEach(([x, N], i) => { const c = T(s+x, lift), len = Math.max(0,N)*kpx, col = N < 0 ? C.bad : C.cN;
+    garrow(1 + i, c[0], c[1], c[0]+n[0]*len, c[1]+n[1]*len, col);
+    gtag(1 + i, who('Normal', 'o cabo empurra a roda'), c[0]+n[0]*(len+16), c[1]+n[1]*(len+16), col, 14);
+    if (e > 0.3){ const g0 = T(s+x, 0); ctx.save(); ctx.globalAlpha = (e-0.3)/0.7*0.45; arrow(g0[0], g0[1], g0[0]-n[0]*len*0.5, g0[1]-n[1]*len*0.5, col, 3, [5,5]); ctx.restore(); } });
+  if (R.T > 1){ const c = T(s+B.Lc+0.25, yh+lift), len = R.T*kpx;
+    garrow(3, c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, C.cT, 7);
+    gtag(3, who('Cabo puxa', 'o motor lá em cima'), c[0]+u[0]*(len+44), c[1]+u[1]*(len+44) - 6, C.cT, 15); }
   cgMark(G);
-  ctx.save(); ctx.font = `800 ${Wc < 600 ? 15 : 20}px ${FONT_UI}`; ctx.textBaseline = 'middle';
-  const at = 'Inclinação do cabo θ = '+br(P.ang,1)+'°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
-  ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(lx, ly, tw+18, 36, 9); ctx.fill(); ctx.globalAlpha = 1;
-  ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18); ctx.restore();
-  OBS.push({x: lx + (tw+18)/2, y: ly + 18, w: tw + 18, h: 36});
+  chips(null, 'Inclinação do cabo');
 }
 
 
@@ -946,7 +1084,7 @@ function panels(R, force){
   else { t = obj+' DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
   $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').style.setProperty('--vc', col); $('verdict').dataset.s = stateOf(R); netBox(R);
-  $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
+  $('simInfo').textContent = `${br(Math.abs(v)*3.6,1)} km/h · andou ${br(sim.s,1)} m · altura ${sim.s*Math.sin(R.th) >= 0 ? '+' : ''}${br(sim.s*Math.sin(R.th),1)} m`;
 
   // cabo de guerra
   const down = R.Wt, up = Math.max(0, R.F), lim = R.lim, req = Math.abs(R.need||0);
@@ -1002,7 +1140,7 @@ function panelsBonde(R){
   else { t = 'O bondinho DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
   $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').style.setProperty('--vc', col); $('verdict').dataset.s = stateOf(R); netBox(R);
-  $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
+  $('simInfo').textContent = `${br(Math.abs(v)*3.6,1)} km/h · andou ${br(sim.s,1)} m · altura ${sim.s*Math.sin(R.th) >= 0 ? '+' : ''}${br(sim.s*Math.sin(R.th),1)} m`;
   const down = R.Wt, up = R.T, sc = Math.max(down, up, 1)*1.08, pct = x => Math.min(100, x/sc*100);
   $('tugDown').style.width = pct(down)+'%'; $('tugDown').textContent = pct(down) > 25 ? fmtF(down) : '';
   $('tugUp').style.width = pct(up)+'%'; $('tugUp').textContent = pct(up) > 25 ? fmtF(up) : ''; $('tugUp').style.background = C.cT;

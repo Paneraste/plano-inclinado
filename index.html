@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plano Inclinado Passo a Passo</title>
+<meta name="description" content="Simulação interativa de diagrama de corpo livre no plano inclinado: bloco, carro e bondinho. Código aberto para aulas de Mecânica.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: app de laboratório — barra superior com seletor de cenário; à esquerda os experimentos,
+   no centro o palco (desenho + balanço de forças), à direita o inspetor de parâmetros. */
+:root{
+  --bg:#eef1f5; --panel:#ffffff; --soft:#f3f5f8; --sunk:#e6eaf0; --line:#dce2ea; --line2:#c9d1dc;
+  --text:#121a24; --muted:#5d6a7a; --faint:#8a96a6; --accent:#1f4fd8; --accent-soft:#e7eefc; --onacc:#ffffff;
+  --sky1:#dfe9f6; --sky2:#f6f9fd; --ramp:#d3c3a6; --ramp2:#b4a07e; --road:#5b6573;
+  --car:#2f6fe0; --car2:#1b3f86; --glass:#d7e6ff; --crate:#d7a663; --crate2:#8a5a22;
+  --cP:#d92646; --cN:#0d9467; --cF:#e07800; --cMa:#7a3ff0; --cM:#0a8aa6; --cDim:#4a5668; --cT:#0277c4;
+  --ok:#0d9467; --warn:#c97a00; --bad:#d23131;
+  --f-ui:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --f-math:"Cambria Math",Cambria,"Times New Roman",serif;
+  --r:12px; --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0c1016; --panel:#141a22; --soft:#19212b; --sunk:#0f141b; --line:#242e3b; --line2:#334052;
+  --text:#e7edf4; --muted:#9aa8b8; --faint:#6b7889; --accent:#6c9cff; --accent-soft:#18243b; --onacc:#0c1016;
+  --sky1:#132034; --sky2:#0d131b; --ramp:#4d4030; --ramp2:#3a3024; --road:#9aa6b4;
+  --car:#3d7cf0; --car2:#a9c6ff; --glass:#c5d9ff; --crate:#c38a44; --crate2:#f0c27a;
+  --cP:#ff6b81; --cN:#34d399; --cF:#fbbf24; --cMa:#c4a1ff; --cM:#22d3ee; --cDim:#c3cddb; --cT:#38bdf8;
+  --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0c1016; --panel:#141a22; --soft:#19212b; --sunk:#0f141b; --line:#242e3b; --line2:#334052;
+  --text:#e7edf4; --muted:#9aa8b8; --faint:#6b7889; --accent:#6c9cff; --accent-soft:#18243b; --onacc:#0c1016;
+  --sky1:#132034; --sky2:#0d131b; --ramp:#4d4030; --ramp2:#3a3024; --road:#9aa6b4;
+  --car:#3d7cf0; --car2:#a9c6ff; --glass:#c5d9ff; --crate:#c38a44; --crate2:#f0c27a;
+  --cP:#ff6b81; --cN:#34d399; --cF:#fbbf24; --cMa:#c4a1ff; --cM:#22d3ee; --cDim:#c3cddb; --cT:#38bdf8;
+  --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--f-ui);font-size:15px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px;border-radius:8px}
+[hidden]{display:none!important}
+
+/* ---------- barra superior ---------- */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top-in{display:flex;align-items:center;gap:16px;padding-block:10px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.brand svg{flex:none}
+.brand h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.15}
+.brand p{margin:0;font-size:12.5px;color:var(--muted)}
+.scen{display:flex;gap:2px;padding:3px;background:var(--sunk);border:1px solid var(--line);border-radius:11px;margin-left:auto;flex-wrap:wrap}
+.scen button{display:flex;align-items:center;gap:7px;border:0;background:transparent;padding:7px 13px;border-radius:8px;font-size:14px;font-weight:600;color:var(--muted)}
+.scen button svg{width:17px;height:17px}
+.scen button:hover{color:var(--text)}
+.scen button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+.scen button small{display:none}
+.tools{display:flex;gap:6px}
+.icon-btn{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);background:var(--panel);border-radius:9px;color:var(--muted)}
+.icon-btn:hover{color:var(--text);border-color:var(--line2)}
+.icon-btn svg{width:18px;height:18px}
+
+/* ---------- grade principal ---------- */
+.app{display:grid;grid-template-columns:270px minmax(0,1fr) 320px;grid-template-areas:"exp stage insp";gap:16px;padding-block:16px 20px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));align-items:start}
+.c-exp{grid-area:exp}.c-stage{grid-area:stage}.c-insp{grid-area:insp}
+@media (max-width:1240px){.app{grid-template-columns:minmax(0,1fr) 320px;grid-template-areas:"stage insp" "stage exp"}}
+@media (max-width:860px){.app{grid-template-columns:1fr;grid-template-areas:"stage" "exp" "insp";padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.top-in{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.scen{margin-left:0;width:100%}.scen button{flex:1;justify-content:center;padding:8px 6px}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 0}
+.ph h2{margin:0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.pb{padding:12px 16px 16px}
+
+/* ---------- experimentos ---------- */
+.exps{display:flex;flex-direction:column;gap:4px}
+.exps button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid transparent;background:transparent;padding:8px 10px;border-radius:9px;font-size:14px;line-height:1.3}
+.exps button:hover{background:var(--soft)}
+.exps button .n{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;background:var(--sunk);color:var(--muted);font:600 12px var(--f-num)}
+.exps button.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--text);font-weight:600}
+.exps button.on .n{background:var(--accent);color:var(--onacc)}
+.obs{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--soft);border-left:3px solid var(--accent);font-size:14px;line-height:1.55}
+
+/* ---------- palco ---------- */
+.stage{position:relative;overflow:hidden}
+canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var(--r) var(--r) 0 0}
+.verdict{position:absolute;top:14px;left:14px;right:14px;pointer-events:none;display:flex}
+.verdict div{display:inline-flex;align-items:center;gap:10px;padding:9px 16px 9px 14px;border-radius:999px;background:var(--panel);border:2px solid var(--line);font-size:20px;font-weight:700;letter-spacing:-.01em;box-shadow:var(--shadow);max-width:100%}
+.verdict div::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor;flex:none}
+@media (max-width:700px){.verdict div{font-size:16px}}
+.toolbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 13px;font-size:14px;font-weight:600}
+.btn:hover{border-color:var(--line2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--onacc);padding:9px 18px}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.toggle.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 40%,transparent);color:var(--accent)}
+.readout{margin-left:auto;font:500 13px var(--f-num);color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ---------- balanço de forças ---------- */
+.tug-wrap{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:1000px){.tug-wrap{grid-template-columns:1fr}}
+.tug .row{position:relative;display:grid;grid-template-columns:1fr 1fr;height:40px;background:var(--sunk);border-radius:8px;margin-top:26px}
+.tug .half{position:relative;height:100%}
+.tug .bar{position:absolute;top:7px;bottom:7px;border:0;border-radius:5px;display:flex;align-items:center;padding:0 8px;font:600 13px var(--f-num);color:#fff;white-space:nowrap;overflow:hidden;transition:width .15s ease}
+.tug .left .bar{right:0;background:var(--cP)}
+.tug .right .bar{left:0;justify-content:flex-end;background:var(--cF)}
+.tug .ghost{position:absolute;top:7px;bottom:7px;left:0;border:2px dashed var(--bad);border-radius:5px}
+.tug .limit{position:absolute;top:-5px;bottom:-5px;width:0;border-left:2px solid var(--text)}
+.tug .limit span{position:absolute;top:-22px;right:4px;width:200px;text-align:right;white-space:nowrap;font:600 11.5px var(--f-num);color:var(--text)}
+.tug .mid{position:absolute;left:50%;top:-5px;bottom:-5px;border-left:2px solid var(--text);opacity:.7}
+.tug .lbls{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:13px;color:var(--muted)}
+.say{font-size:15.5px;line-height:1.6;margin-top:12px}
+.say b{font-weight:700}
+.say b.dn{color:var(--cP)} .say b.up{color:var(--cF)}
+.axle .bar2{height:30px;border-radius:8px;overflow:hidden;display:flex;font:600 12.5px var(--f-num);color:#fff;margin:8px 0 6px}
+.axle .bar2 div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;padding:0 6px}
+.small{font-size:13.5px;color:var(--muted);line-height:1.5}
+
+/* ---------- inspetor ---------- */
+.ctl{padding:12px 0;border-top:1px solid var(--line)}
+.ctl:first-child{border-top:0;padding-top:2px}
+.ctl .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;font-weight:600}
+.ctl .val{font:600 15px var(--f-num);color:var(--accent);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctl input[type=range]{width:100%;margin:8px 0 0;accent-color:var(--accent);height:20px}
+.hint,.ctl .hint{font-size:12.5px;color:var(--faint);margin-top:4px;line-height:1.45}
+.seg{display:flex;gap:2px;padding:3px;background:var(--sunk);border:1px solid var(--line);border-radius:9px;margin-top:8px;flex-wrap:wrap}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:6px 6px;font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+.legend{display:flex;flex-direction:column;gap:10px}
+.legend .it{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45}
+.legend .it b{font-weight:700}
+.legend .sw{width:24px;height:5px;border-radius:3px;margin-top:8px;flex:none}
+.legend .sw.d{background:repeating-linear-gradient(90deg,var(--cP) 0 6px,transparent 6px 10px)!important}
+.legend .sw.dm{background:repeating-linear-gradient(90deg,var(--cMa) 0 6px,transparent 6px 10px)!important}
+.chk{display:flex;flex-direction:column;gap:7px;font-size:13.5px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.chk label{display:flex;gap:8px;align-items:center}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+
+/* ---------- equações ---------- */
+.eqwrap{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-bottom:20px}
+@media (max-width:860px){.eqwrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
+.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.eq > div{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:var(--f-math);font-size:17px;line-height:1.65;min-width:0;overflow-x:auto}
+.eq .step{font:700 11.5px var(--f-ui);text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:4px}
+.eq .n{font:500 13.5px var(--f-num);color:var(--muted)}
+.eq b{font-family:var(--f-num);font-size:15px}
+
+footer{padding-block:4px 28px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));color:var(--faint);font-size:13px;display:flex;gap:6px 18px;flex-wrap:wrap}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion: reduce){.tug .bar{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="var(--accent)"/><path d="M6 26 L28 26 L28 11 Z" fill="var(--onacc)" opacity=".95"/><rect x="15.5" y="14.5" width="6" height="6" rx="1" transform="rotate(-34 18.5 17.5)" fill="var(--accent)" stroke="var(--onacc)" stroke-width="1.6"/></svg>
+      <div><h1>Plano Inclinado Passo a Passo</h1><p>Mecânica Geral II · laboratório de diagrama de corpo livre</p></div>
+    </div>
+    <nav class="scen" id="tabs" aria-label="Cenário">
+      <button data-t="prof" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M7 15l3-8 3 5 2-3 3 6"/></svg>Professor<small></small></button>
+      <button data-t="bloco"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 20h18L21 8z"/><rect x="11" y="10" width="5" height="5" transform="rotate(-30 13.5 12.5)"/></svg>Bloco<small></small></button>
+      <button data-t="carro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16v-3l2-4h9l3 4h3v3"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>Carro<small></small></button>
+      <button data-t="bonde"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6l20-3"/><circle cx="10" cy="5.2" r="1.3"/><circle cx="14" cy="4.6" r="1.3"/><path d="M12 6v4"/><rect x="7" y="10" width="10" height="9" rx="2"/><path d="M7 14h10"/></svg>Bondinho<small></small></button>
+    </nav>
+    <div class="tools">
+      <button class="icon-btn" id="btnTheme" title="Alternar tema" aria-label="Alternar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      <button class="icon-btn" id="btnFull" title="Tela cheia" aria-label="Tela cheia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main class="app">
+  <aside class="col c-exp">
+    <section class="panel">
+      <div class="ph"><h2>Experimentos</h2></div>
+      <div class="pb"><div class="exps" id="exps"></div><div class="obs" id="obs"></div></div>
+    </section>
+  </aside>
+
+  <div class="col c-stage">
+    <section class="panel stage">
+      <canvas id="cv" aria-label="Desenho do diagrama de corpo livre"></canvas>
+      <div class="verdict"><div id="verdict" role="status"></div></div>
+      <div class="toolbar">
+        <button class="btn primary" id="btnPlay">▶ Soltar</button>
+        <button class="btn" id="btnReset">⟲ Voltar ao início</button>
+        <button class="btn toggle" id="btnSlow">Câmera lenta</button>
+        <span class="readout" id="simInfo"></span>
+      </div>
+    </section>
+
+    <section class="panel tug" id="tug">
+      <div class="ph"><h2>Balanço de forças ao longo da rampa</h2></div>
+      <div class="pb tug-wrap">
+        <div>
+          <div class="row">
+            <div class="half left"><div class="bar" id="tugDown"></div></div>
+            <div class="half right"><div class="ghost" id="tugGhost" hidden></div><div class="bar" id="tugUp"></div><div class="limit" id="tugLim"><span id="tugLimTxt"></span></div></div>
+            <div class="mid"></div>
+          </div>
+          <div class="lbls"><span>◀ <b style="color:var(--cP)">Puxa para BAIXO</b> (parte do peso)</span><span id="upLbl"><b style="color:var(--cF)">Empurra para CIMA</b> (atrito) ▶</span></div>
+          <div class="say" id="say"></div>
+        </div>
+        <div class="axle" id="axle" hidden>
+          <div class="small"><b>Peso em cada par de rodas.</b> O pneu com mais peso em cima agarra mais.</div>
+          <div class="bar2" id="axBar"></div>
+          <div class="small" id="axTxt"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="col c-insp">
+    <section class="panel">
+      <div class="ph"><h2>Parâmetros</h2></div>
+      <div class="pb" id="controls"></div>
+    </section>
+    <section class="panel">
+      <div class="ph"><h2>Legenda das setas</h2></div>
+      <div class="pb">
+        <div class="legend" id="legend"></div>
+        <div class="chk" id="profChk" hidden>
+          <label><input type="checkbox" id="shVal" checked> Valores nas setas</label>
+          <label><input type="checkbox" id="shComp" checked> Decompor o peso (P·senθ e P·cosθ)</label>
+          <label><input type="checkbox" id="shMa" checked> Vetor m·a</label>
+          <label><input type="checkbox" id="shDim" checked> Medidas b, h, L</label>
+          <label><input type="checkbox" id="shMom"> Momentos em G</label>
+        </div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<div class="eqwrap"><section class="panel eqcard" id="eqcard" hidden>
+  <div class="ph"><h2>Equações · 1º diagrama de corpo livre → 2º ΣF e ΣM → 3º resolver</h2></div>
+  <div class="pb"><div class="eq" id="eqs"></div></div>
+</section></div>
+
+<footer>
+  <span>Feito por <b>Arthur Vinagre</b> · Engenharia Mecatrônica</span>
+  <span>Exemplo 6/1: Meriam &amp; Kraige, <i>Mecânica para Engenharia: Dinâmica</i></span>
+  <span>Código aberto (licença MIT) · <a id="ghLink" href="https://github.com/Paneraste/plano-inclinado" target="_blank" rel="noopener">código no GitHub</a></span>
+</footer>
+
+<script>
+(() => {
+const g = 9.81, rad = d => d*Math.PI/180, deg = r => r*180/Math.PI;
+const $ = id => document.getElementById(id);
+const br = (x, d=2) => x.toFixed(d).replace('.', ',');
+const fmtF = N => Math.abs(N) >= 1000 ? br(N/1000, 1)+' kN' : N.toFixed(0)+' N';
+
+// ---------------- estado ----------------
+const BASE = { tab:'bloco', ang:25, mB:10, mus:0, muk:0, mC:1500, F:4, aDes:1.6, mode:'motor', drive:'R', brake:'R',
+  me:0, be:0.5, he:0.9, L:3, b0:0.5, h0:0.6, r:0.35, carga:'0', piso:'seco', pess:20, T:18 };
+// bondinho: rodas a Lc uma da outra; cabo de tração e acima do pino; cabine pendurada D abaixo do pino
+const BONDE = { Lc:2, e:0.6, D:2.6, r:0.3, cab:2000, W:2.4, H:1.9 };
+const P = Object.assign({}, BASE);
+const PISO_BLOCO = { liso:[0,0,'Sem atrito'], madeira:[0.4,0.32,'Madeira'], borracha:[0.8,0.65,'Borracha'] };
+const PISO_CARRO = { seco:[0.8,0.7,'Asfalto seco'], molhado:[0.6,0.5,'Molhado'], terra:[0.45,0.35,'Terra'], gelo:[0.12,0.08,'Gelo'] };
+const CARGA = { '0':[0,0.5,0.9,'Sem carga'], 'R':[600,-0.1,0.9,'Porta-malas'], 'F':[600,0.95,0.9,'Na frente'] };
+
+// ---------------- experimentos ----------------
+const EXPS = {
+  bloco: [
+    ['Sem atrito: sempre desce', {ang:25, piso:'liso', mB:10}, 'Sem atrito nada segura o bloco. <b>Mude a massa</b> e solte de novo: ele desce do mesmo jeito. A aceleração é g·senθ e não depende da massa.'],
+    ['O atrito segura', {ang:15, piso:'madeira', mB:10}, 'A ladeira puxa pouco e o atrito aguenta mais do que isso. O bloco fica parado. O atrito só faz a força <b>necessária</b> para segurar.'],
+    ['Ache o ângulo do escorregão', {ang:18, piso:'madeira', mB:10}, '<b>Aumente a inclinação aos poucos</b> e aperte Soltar. Na madeira ele começa a escorregar perto de <b>21,8°</b> (tanθ = μ). Troque para borracha e veja o ângulo subir.'],
+    ['Rampa íngreme: escorrega', {ang:35, piso:'madeira', mB:10}, 'A barra vermelha passou do limite do atrito. O bloco escorrega e o atrito diminui (atrito cinético).'],
+  ],
+  carro: [
+    ['Subindo a ladeira', {ang:10, F:4, mode:'motor', drive:'R', piso:'seco', carga:'0'}, 'O motor gira a roda, a roda empurra o chão para trás e <b>o chão empurra o carro para frente</b>. Essa força é o atrito. Barra laranja maior que a vermelha: o carro sobe.'],
+    ['Pouco acelerador: desce', {ang:15, F:2, mode:'motor', drive:'R', piso:'seco', carga:'0'}, 'O atrito do pneu não vence a ladeira. Aumente o <b>acelerador</b> até a barra laranja passar a vermelha.'],
+    ['Ponto morto', {ang:12, mode:'neutro', drive:'R', piso:'seco', carga:'0'}, 'Sem motor e sem freio, ninguém empurra para cima. O carro desce como o bloco sem atrito.'],
+    ['Freio de mão segura', {ang:15, mode:'freio', piso:'seco', carga:'0'}, 'As rodas travadas aguentam mais do que a ladeira puxa. O carro fica parado.'],
+    ['Freio de mão no gelo', {ang:15, mode:'freio', piso:'gelo', carga:'0'}, 'No gelo o limite do pneu fica muito baixo. Mesmo freado, o carro <b>escorrega</b>.'],
+    ['Tração dianteira patina', {ang:14, F:4.5, mode:'motor', drive:'F', piso:'molhado', carga:'0'}, 'Acelerando na subida, o peso vai para trás e a frente fica leve. O pneu da frente <b>patina</b>. Agora troque a tração para <b>Traseira</b>.'],
+    ['Mesma ladeira, tração traseira', {ang:14, F:4.5, mode:'motor', drive:'R', piso:'molhado', carga:'0'}, 'Com tração traseira, o pneu que puxa é o que ganhou peso. Ele agarra e o carro sobe. Por isso caminhonetes e carros de corrida puxam por trás.'],
+    ['Carga no porta-malas', {ang:18, F:8, mode:'motor', drive:'R', piso:'molhado', carga:'R'}, 'Peso em cima das rodas de trás faz o pneu traseiro agarrar mais. Troque para tração <b>Dianteira</b> e veja patinar.'],
+  ],
+  bonde: [
+    ['Subindo com 20 pessoas', {ang:25, pess:20, T:18, mode:'puxar'}, 'O <b>cabo de tração</b> puxa o bondinho morro acima. A parte do peso puxa para baixo. Barra azul maior que a vermelha: sobe.'],
+    ['Parado no meio do caminho', {ang:25, pess:20, mode:'segurar'}, 'O cabo faz exatamente a força da parte do peso ao longo do cabo (P·senθ). As forças se equilibram e ele fica parado lá no alto.'],
+    ['Lotado: o motor não dá conta', {ang:25, pess:60, T:18, mode:'puxar'}, 'Mesma força no cabo, mas com 60 pessoas a barra vermelha cresce e ganha. <b>Aumente a força do cabo</b> até ele voltar a subir.'],
+    ['Arrancada forte: a cabine balança', {ang:20, pess:20, T:30, mode:'puxar'}, 'Acelerando forte, a cabine pendurada <b>balança para trás</b>, como você no ônibus que arranca. Veja também a roda de cima carregar mais que a de baixo.'],
+    ['Cabo mais íngreme', {ang:40, pess:20, T:18, mode:'puxar'}, 'Mesmo motor, cabo mais inclinado: P·senθ cresce e o bondinho já não sobe.'],
+    ['O cabo arrebenta!', {ang:25, pess:20, mode:'romper'}, 'Sem o cabo de tração nada puxa para cima: desce com a = g·senθ. Na vida real o <b>freio de emergência</b> trava no cabo de apoio.'],
+  ],
+  prof: [
+    ['Exemplo 6/1 da aula (Meriam)', 'ex', 'Caminhonete de 1500 kg, de 0 a 50 km/h em 60 m, rampa de 10%, tração traseira. Resposta do livro: N_A = 8,10 kN, N_B = 6,55 kN, μ mínimo = 0,479.'],
+    ['Carro empinando', {ang:10, F:30, mode:'motor', drive:'R', mus:1.2, muk:1.0, me:1500, be:-0.2, he:1.2}, 'Carga pesada, alta e atrás do eixo, com muita força: F_at·h passa de mg·cosθ·b e N_B fica negativa. A frente levanta.'],
+    ['4×4 na terra', {ang:20, F:6, mode:'motor', drive:'4', mus:0.45, muk:0.35}, 'Com 4×4 todo o peso ajuda na tração: rampa máxima tanθ = μ. Compare com tração traseira e dianteira.'],
+    ['Freio só na frente, ladeira forte', {ang:25, mode:'freio', brake:'F', mus:0.8, muk:0.7}, 'Parado na ladeira, a frente fica mais leve. Freando só na frente o carro escorrega; troque para freio nas 4 rodas e ele segura.'],
+  ],
+};
+let expOn = null;
+function renderExps(){
+  const list = EXPS[P.tab];
+  $('exps').innerHTML = list.map(([t], i) => `<button data-i="${i}" class="${expOn===i?'on':''}"><span class="n">${i+1}</span>${t}</button>`).join('');
+  $('obs').innerHTML = expOn == null ? 'Escolha um experimento acima ou mexa nos ajustes e aperte <b>Soltar</b>.' : list[expOn][2];
+}
+$('exps').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const i = +b.dataset.i, set = EXPS[P.tab][i][1];
+  setTab(P.tab, false);
+  if (set === 'ex') loadExample(); else applySet(set);
+  expOn = i; renderExps(); buildControls(); fullReset(); sim.run = true; playBtn();
+};
+function applySet(set){
+  Object.assign(P, set);
+  if (set.piso){ const t = P.tab==='bloco' ? PISO_BLOCO : PISO_CARRO; [P.mus, P.muk] = t[set.piso]; }
+  if (set.carga){ [P.me, P.be, P.he] = CARGA[set.carga]; }
+}
+function loadExample(){
+  const v = 50/3.6;
+  Object.assign(P, {ang:+deg(Math.atan(0.1)).toFixed(2), mC:1500, L:3, b0:0.5, h0:0.6, me:0, mus:0.8, muk:0.7, drive:'R', mode:'accel', aDes:+(v*v/120).toFixed(3)});
+}
+
+// ---------------- abas ----------------
+function setTab(t, reset=true){
+  VIEW_LEN = null;
+  Object.assign(P, BASE, {tab:t});
+  if (t === 'bloco') applySet({ang:25, piso:'liso'});
+  if (t === 'carro') applySet({ang:10, F:4, piso:'seco', carga:'0'});
+  if (t === 'prof') applySet({ang:5.71, F:4, mus:0.8, muk:0.7});
+  if (t === 'bonde') applySet({ang:25, pess:20, T:18, mode:'puxar'});
+  $('upLbl').innerHTML = t === 'bonde' ? '<b style="color:var(--cT)">Puxa para CIMA</b> (cabo de tração) ▶' : '<b style="color:var(--cF)">Empurra para CIMA</b> (atrito) ▶';
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('eqcard').hidden = t !== 'prof' && t !== 'bonde';
+  $('profChk').hidden = t !== 'prof';
+  $('axle').hidden = t === 'bloco';
+  renderLegend();
+  if (reset){ expOn = null; renderExps(); buildControls(); fullReset(); }
+}
+$('tabs').onclick = e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); };
+
+// ---------------- ajustes ----------------
+function slider(box, key, lab, mn, mx, st, fmt, hint){
+  const d = document.createElement('div'); d.className = 'ctl';
+  const id = 'c_'+key;
+  d.innerHTML = `<div class="top"><label for="${id}">${lab}</label><span class="val"></span></div><input id="${id}" type="range" min="${mn}" max="${mx}" step="${st}">${hint?`<div class="hint">${hint}</div>`:''}`;
+  const r = d.querySelector('input'), val = d.querySelector('.val');
+  r.value = P[key]; val.textContent = fmt(P[key]);
+  r.oninput = () => { P[key] = +r.value; val.textContent = fmt(P[key]); if (!sim.run) fullReset(); };
+  box.appendChild(d);
+}
+function buttons(box, lab, opts, cur, onpick){
+  const d = document.createElement('div'); d.className = 'ctl';
+  d.innerHTML = `<div class="top"><span>${lab}</span></div><div class="seg">${opts.map(([v,t]) => `<button data-v="${v}" class="${String(cur)===String(v)?'on':''}">${t}</button>`).join('')}</div>`;
+  d.querySelectorAll('button').forEach(b => b.onclick = () => { onpick(b.dataset.v); buildControls(); if (!sim.run) fullReset(); });
+  box.appendChild(d);
+}
+function buildControls(){
+  const box = $('controls'); box.innerHTML = '';
+  slider(box, 'ang', 'Inclinação da rampa', 0, 45, 0.5, v => br(v,1)+'°');
+  if (P.tab === 'bloco'){
+    buttons(box, 'Superfície', Object.entries(PISO_BLOCO).map(([k,v]) => [k, v[2]]), P.piso, v => applySet({piso:v}));
+    slider(box, 'mB', 'Massa do bloco', 1, 100, 1, v => v+' kg', 'mude e veja: a massa não decide se ele escorrega');
+    return;
+  }
+  if (P.tab === 'bonde'){
+    buttons(box, 'O cabo de tração', [['puxar','Motor puxa'],['segurar','Segura parado'],['romper','Arrebenta']], P.mode, v => P.mode = v);
+    if (P.mode === 'puxar') slider(box, 'T', 'Força no cabo de tração', 0, 60, 0.5, v => br(v,1)+' kN');
+    slider(box, 'pess', 'Passageiros', 0, 60, 1, v => v+' pessoas');
+    const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Cabine de 2000 kg + 75 kg por pessoa, pendurada num carrinho de duas rodas que corre em cima do cabo de apoio.'; box.appendChild(h);
+    return;
+  }
+  if (P.tab === 'carro'){
+    buttons(box, 'O motorista', [['motor','Acelera'],['neutro','Ponto morto'],['freio','Freio de mão']], P.mode, v => P.mode = v);
+    if (P.mode === 'motor') slider(box, 'F', 'Acelerador (força nas rodas)', 0, 10, 0.1, v => br(v,1)+' kN');
+    if (P.mode === 'motor') buttons(box, 'Tração (rodas que puxam)', [['R','Traseira'],['F','Dianteira'],['4','4×4']], P.drive, v => P.drive = v);
+    buttons(box, 'Piso', Object.entries(PISO_CARRO).map(([k,v]) => [k, v[2]]), P.piso, v => applySet({piso:v}));
+    buttons(box, 'Carga extra de 600 kg', Object.entries(CARGA).map(([k,v]) => [k, v[3]]), P.carga, v => applySet({carga:v}));
+    const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Carro de 1500 kg. O freio de mão trava as rodas de trás.'; box.appendChild(h);
+    return;
+  }
+  buttons(box, 'O motorista', [['motor','Força motriz'],['accel','Aceleração a'],['neutro','Ponto morto'],['freio','Freio de mão']], P.mode, v => P.mode = v);
+  if (P.mode === 'motor') slider(box, 'F', 'Força motriz nas rodas', 0, 30, 0.1, v => br(v,1)+' kN');
+  if (P.mode === 'accel') slider(box, 'aDes', 'Aceleração desejada a', -4, 6, 0.01, v => br(v,2)+' m/s²');
+  if (P.mode !== 'freio') buttons(box, 'Tração', [['R','Traseira (A)'],['F','Dianteira (B)'],['4','4×4']], P.drive, v => P.drive = v);
+  else buttons(box, 'Freio trava as rodas', [['R','de trás'],['F','da frente'],['4','todas']], P.brake, v => P.brake = v);
+  slider(box, 'mus', 'μ estático', 0, 1.3, 0.01, v => br(v,2));
+  slider(box, 'muk', 'μ cinético', 0, 1.3, 0.01, v => br(v,2));
+  slider(box, 'mC', 'Massa do carro m', 500, 4000, 50, v => v+' kg');
+  slider(box, 'me', 'Carga extra', 0, 2000, 10, v => v+' kg');
+  slider(box, 'be', 'Posição da carga (0 = eixo traseiro, 1 = dianteiro)', -0.2, 1.2, 0.01, v => br(v,2)+'·L');
+  slider(box, 'he', 'Altura da carga', 0.3, 2, 0.01, v => br(v,2)+' m');
+  slider(box, 'L', 'Entre-eixos L', 2, 4.5, 0.05, v => br(v,2)+' m');
+  slider(box, 'b0', 'CG do carro a partir do eixo traseiro', 0.2, 0.8, 0.01, v => br(v,2)+'·L');
+  slider(box, 'h0', 'Altura do CG do carro h', 0.2, 1.5, 0.01, v => br(v,2)+' m');
+}
+
+function renderLegend(){
+  const it = (col, nm, txt, cls) => `<div class="it"><span class="sw${cls?' '+cls:''}" style="background:${col}"></span><span><b>${nm}</b> — ${txt}</span></div>`;
+  if (P.tab === 'bonde'){
+    $('legend').innerHTML = it('var(--cP)', 'Peso', 'a Terra puxando a cabine (com as pessoas) para baixo.')
+      + it('var(--cP)', 'Puxa cabo abaixo', 'a parte do peso que tenta fazer o bondinho descer o cabo (P·senθ).', 'd')
+      + it('var(--cN)', 'Normal', 'o cabo de apoio empurrando cada roda para cima, perpendicular ao cabo.')
+      + it('var(--cT)', 'Cabo puxa', 'o cabo de tração puxando o bondinho morro acima (T). Faz o papel que o atrito faz no carro.');
+    return;
+  }
+  const stu = P.tab !== 'prof', obj = P.tab==='bloco' ? 'o bloco' : 'o carro';
+  let h = it('var(--cP)', stu?'Peso':'P = m·g', 'a Terra puxando '+obj+' para baixo, sempre na vertical.');
+  h += it('var(--cP)', stu?'Puxa rampa abaixo':'P·senθ', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
+  h += it('var(--cN)', stu?'Normal':'N_A, N_B', P.tab==='bloco' ? 'o chão empurrando o bloco para fora da rampa.' : 'o chão empurrando cada par de rodas para fora da rampa (uma seta atrás, outra na frente).');
+  h += it('var(--cF)', stu?'Atrito':'F_at', P.tab==='bloco' ? 'o chão segurando o bloco, contra o escorregão. Fica vermelho quando escorrega.' : 'o chão empurrando o pneu. É ele que faz o carro <b>andar</b> (motor) ou <b>segurar</b> (freio). Fica vermelho quando patina.');
+  if (!stu) h += it('var(--cMa)', 'm·a', 'resultado das forças (não é uma força a mais).', 'dm');
+  $('legend').innerHTML = h;
+}
+
+const sh = {val:true, comp:true, ma:true, dim:true, mom:false};
+[['shVal','val'],['shComp','comp'],['shMa','ma'],['shDim','dim'],['shMom','mom']].forEach(([id,k]) => $(id).onchange = e => sh[k] = e.target.checked);
+
+// ---------------- física ----------------
+const isBlock = () => P.tab === 'bloco';
+function solveBlock(v){
+  const th = rad(P.ang), m = P.mB, W = m*g, Wn = W*Math.cos(th), Wt = W*Math.sin(th);
+  let F = 0, a, hold = false, slip = false;
+  const lim = P.mus*Wn;
+  if (Math.abs(v) < 1e-4 && Wt <= lim + 1e-9){ F = Wt; a = 0; hold = true; }
+  else { F = P.muk*Wn; slip = P.mus > 0; a = (F - Wt)/m; if (Math.abs(v) < 1e-4 && a > 0){ a = 0; hold = true; F = Wt; } }
+  return {block:true, th, m, W, Wn, Wt, N:Wn, F, a, hold, slip, lim, need:Wt};
+}
+function axle(t, L, b){ return t==='R' ? {P:L-b, Q:1} : t==='F' ? {P:b, Q:-1} : {P:L, Q:0}; }
+function solveCar(v){
+  const th = rad(P.ang), m = P.mC + P.me, W = m*g, Wn = W*Math.cos(th), Wt = W*Math.sin(th);
+  const L = P.L, b = (P.mC*P.b0*L + P.me*P.be*L)/m, h = (P.mC*P.h0 + P.me*P.he)/m;
+  const fS = (s, mu, ax) => { const den = L - s*mu*ax.Q*h; return den <= 1e-9 ? s*Infinity : s*mu*ax.P*Wn/den; };
+  const NdAt = (ax, F) => (ax.P*Wn + ax.Q*h*F)/L;
+  let F = 0, Freq = 0, slip = false, hold = false, kind = 'tracao', axT = P.drive, ax = axle(P.drive, L, b);
+  if (P.mode === 'motor' || P.mode === 'accel'){
+    Freq = P.mode === 'motor' ? P.F*1000 : m*(P.aDes + g*Math.sin(th));
+    if (Freq){ const s = Math.sign(Freq); if (Math.abs(Freq) <= Math.abs(fS(s, P.mus, ax))) F = Freq; else { slip = true; F = fS(s, P.muk, ax); } }
+  } else if (P.mode === 'neutro'){ kind = 'livre'; }
+  else {
+    kind = 'freio'; axT = P.brake; ax = axle(P.brake, L, b);
+    if (Math.abs(v) < 1e-4){ Freq = Wt;
+      if (Math.abs(Freq) <= Math.abs(fS(1, P.mus, ax))){ F = Freq; hold = true; } else { slip = true; F = fS(1, P.muk, ax); } }
+    else { const s = -Math.sign(v); slip = true; F = fS(s, P.muk, ax); Freq = Wt; }
+  }
+  if (!isFinite(F)) F = Freq;
+  const Nb = (b*Wn - h*F)/L, Na = Wn - Nb, a = hold ? 0 : (F - Wt)/m;
+  let Fa = 0, Fb = 0;
+  if (kind !== 'livre'){ if (axT==='R') Fa = F; else if (axT==='F') Fb = F; else { Fa = F*Na/Wn; Fb = F*Nb/Wn; } }
+  const Nd = kind === 'livre' ? 0 : NdAt(ax, F);
+  const lim = kind === 'livre' ? 0 : Math.abs(fS(Freq < 0 ? -1 : 1, P.mus, ax));
+  const muReq = (kind==='livre' || !Freq) ? 0 : Math.abs(Freq)/Math.max(1e-9, NdAt(ax, Freq));
+  return {block:false, th, m, W, Wn, Wt, L, b, h, F, Freq, slip, hold, a, Na, Nb, Fa, Fb, Nd, kind, axT, lim, muReq,
+    need: kind==='freio' ? Wt : Freq, MA:-b*Na, MB:(L-b)*Nb, MF:h*F};
+}
+function solveBonde(v){
+  const th = rad(P.ang), m = BONDE.cab + 75*P.pess, W = m*g, Wn = W*Math.cos(th), Wt = W*Math.sin(th);
+  let T, hold = false;
+  if (P.mode === 'segurar'){ T = Wt; hold = true; } else if (P.mode === 'romper') T = 0; else T = P.T*1000;
+  const a = hold ? 0 : (T - Wt)/m;
+  // carrinho leve: ΣM no pino = 0 -> N_B - N_A = 2·e·T/Lc ; ΣFy = 0 -> N_A + N_B = mg·cosθ
+  const Nb = (Wn + 2*BONDE.e*T/BONDE.Lc)/2, Na = Wn - Nb;
+  // a cabine pendurada se alinha com a gravidade aparente (g - a)
+  const dx = -g*Math.sin(th) - a, dy = -g*Math.cos(th), dl = Math.hypot(dx, dy);
+  const wx = (dx*Math.cos(th) - dy*Math.sin(th))/dl, wy = (dx*Math.sin(th) + dy*Math.cos(th))/dl;
+  const phi = Math.atan2(wx, -wy);
+  return {bonde:true, block:false, th, m, W, Wn, Wt, T, F:T, a, hold, slip:false, Na, Nb, phi, kind:'cabo', need:Wt, lim:Infinity};
+}
+const solve = v => isBlock() ? solveBlock(v) : P.tab === 'bonde' ? solveBonde(v) : solveCar(v);
+
+// ---------------- simulação ----------------
+const RAMP_M = { bloco: 6, carro: 12, bonde: 14 }, BLOCK = 0.9;
+const sim = { s:0, v:0, t:0, run:false, stopped:false, msg:'', wheel:0 };
+let VIEW_LEN = null;   // comprimento visível da rampa (m), ajustado ao tamanho da tela
+const rampM = () => VIEW_LEN || (isBlock() ? RAMP_M.bloco : P.tab === 'bonde' ? RAMP_M.bonde : RAMP_M.carro);
+const sRange = () => isBlock() ? [0.1, rampM()-BLOCK-0.1] : P.tab === 'bonde' ? [1, rampM()-BONDE.Lc-1] : [Math.max(0.28*P.L+0.2, 2.4), rampM() - 1.24*P.L - 0.2];
+const parts = [];
+function fullReset(){ const [a,b] = sRange(); sim.s = isBlock() ? b : P.tab === 'bonde' ? a + (b-a)*0.3 : a; sim.phi = null; sim.v = 0; sim.t = 0; sim.msg = ''; sim.stopped = false; sim.run = false; parts.length = 0; playBtn(); }
+function step(dt){
+  const R = solve(sim.v), [lo, hi] = sRange();
+  const v0 = sim.v; let v1 = v0 + R.a*dt;
+  if (!R.block && R.kind==='freio' && v0 && Math.sign(v1) !== Math.sign(v0)) v1 = 0;
+  if (R.block && v0 < 0 && v1 >= 0) v1 = 0;
+  if (R.hold) v1 = 0;
+  sim.v = v1; sim.s += (v0+v1)/2*dt; sim.t += dt;
+  if (!R.block){ sim.wheel += (v0+v1)/2*dt/(R.bonde ? BONDE.r : P.r); if (R.slip && R.kind!=='freio') sim.wheel += Math.sign(R.F||1)*16*dt; }
+  if (sim.s > hi) sim.s = hi; if (sim.s < lo) sim.s = lo;
+  if (sim.s >= hi && sim.v > 0){ sim.v = 0; sim.run = false; sim.stopped = true; sim.msg = 'chegou ao topo'; playBtn(); }
+  if (sim.s <= lo && sim.v < 0){ sim.v = 0; sim.run = false; sim.stopped = true; sim.msg = 'chegou lá embaixo'; playBtn(); }
+}
+function playBtn(){ const b = $('btnPlay'); b.textContent = sim.run ? '⏸ Pausar' : (sim.stopped ? '⟲ Soltar de novo' : '▶ Soltar');  }
+$('btnPlay').onclick = () => { if (sim.stopped) fullReset(); sim.run = !sim.run; playBtn(); };
+$('btnReset').onclick = fullReset;
+let speed = 1;
+$('btnSlow').onclick = () => { speed = speed === 1 ? 0.35 : 1; $('btnSlow').classList.toggle('on', speed !== 1); };
+
+// ---------------- desenho ----------------
+const FONT_UI = '"IBM Plex Sans","Segoe UI",system-ui,sans-serif';
+const cv = $('cv'), ctx = cv.getContext('2d');
+let C = {}, Wc = 0, Hc = 0, dpr = 1;
+function colors(){ const cs = getComputedStyle(document.documentElement); ['panel','soft','line','text','muted','accent','sky1','sky2','ramp','ramp2','road','car','car2','glass','crate','crate2','cP','cN','cF','cMa','cM','cDim','cT','ok','warn','bad'].forEach(k => C[k] = cs.getPropertyValue('--'+k).trim()); }
+colors();
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', colors); } catch(e){}
+function resize(){ dpr = devicePixelRatio || 1; const r = cv.getBoundingClientRect(); Wc = r.width; Hc = r.height; cv.width = Wc*dpr; cv.height = Hc*dpr; }
+new ResizeObserver(resize).observe(cv); resize();
+
+function arrow(x1,y1,x2,y2,col,w=6,dash=null){
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if (len<3) return;
+  const ux=dx/len, uy=dy/len, hd=Math.min(18, len*0.45), hw=hd*0.62;
+  ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=w; ctx.lineCap='round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2-ux*hd*0.9, y2-uy*hd*0.9); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-ux*hd-uy*hw, y2-uy*hd+ux*hw); ctx.lineTo(x2-ux*hd+uy*hw, y2-uy*hd-ux*hw); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+// Etiquetas vão para uma fila; no fim do quadro um organizador afasta as que se encostam
+// (umas das outras e dos quadros fixos) e liga cada uma à sua seta com uma linha tracejada.
+let TAGS = [], OBS = [];
+function tag(txt, x, y, col, size=16, sub){ TAGS.push({txt, x, y, ox:x, oy:y, col, size: Wc < 600 ? Math.round(size*0.8) : size, sub}); }
+function flushTags(){
+  const cr = cv.getBoundingClientRect(), vr = $('verdict').getBoundingClientRect();
+  if (vr.width) OBS.push({x: vr.left - cr.left + vr.width/2, y: vr.top - cr.top + vr.height/2, w: vr.width + 8, h: vr.height + 8});
+  ctx.save();
+  TAGS.forEach(t => { ctx.font = `800 ${t.size}px ${FONT_UI}`; let w = ctx.measureText(t.txt).width;
+    if (t.sub){ ctx.font = `700 ${t.size-3}px ${FONT_UI}`; w = Math.max(w, ctx.measureText(t.sub).width); }
+    t.w = w + 14; t.h = t.sub ? t.size*2.3 : t.size*1.55; });
+  const clamp = t => { t.x = Math.max(t.w/2+4, Math.min(Wc-t.w/2-4, t.x)); t.y = Math.max(t.h/2+4, Math.min(Hc-t.h/2-4, t.y)); };
+  TAGS.forEach(clamp);
+  const gap = 5;
+  for (let it = 0; it < 120; it++){
+    let moved = false;
+    for (let i = 0; i < TAGS.length; i++){
+      const a = TAGS[i];
+      for (let j = i+1; j < TAGS.length; j++){
+        const b = TAGS[j], ox = (a.w+b.w)/2 + gap - Math.abs(a.x-b.x), oy = (a.h+b.h)/2 + gap - Math.abs(a.y-b.y);
+        if (ox > 0 && oy > 0){ moved = true;
+          if (oy <= ox){ const d = (a.y <= b.y ? -1 : 1)*oy/2; a.y += d; b.y -= d; }
+          else { const d = (a.x <= b.x ? -1 : 1)*ox/2; a.x += d; b.x -= d; }
+          clamp(b); }
+      }
+      for (const o of OBS){
+        const ox = (a.w+o.w)/2 + gap - Math.abs(a.x-o.x), oy = (a.h+o.h)/2 + gap - Math.abs(a.y-o.y);
+        if (ox > 0 && oy > 0){ moved = true; if (oy <= ox) a.y += (a.y < o.y ? -1 : 1)*oy; else a.x += (a.x < o.x ? -1 : 1)*ox; }
+      }
+      clamp(a);
+    }
+    if (!moved) break;
+  }
+  TAGS.forEach(t => { if (Math.hypot(t.x-t.ox, t.y-t.oy) > 10){
+    ctx.strokeStyle = t.col; ctx.globalAlpha = .7; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(t.ox, t.oy); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(t.ox, t.oy, 3, 0, 7); ctx.fill(); } });
+  TAGS.forEach(t => {
+    const {x, y, w, h, col, size, txt, sub} = t;
+    ctx.fillStyle = C.panel; ctx.globalAlpha = .96; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, w, h, 7); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `800 ${size}px ${FONT_UI}`; ctx.fillText(txt, x, sub ? y - size*0.45 : y+1);
+    if (sub){ ctx.font = `700 ${size-3}px ${FONT_UI}`; ctx.fillText(sub, x, y + size*0.62); }
+  });
+  ctx.restore(); TAGS = []; OBS = [];
+}
+
+function draw(){
+  const R = solve(sim.v), th = R.th, cs = Math.cos(th), sn = Math.sin(th), prof = P.tab === 'prof';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const gr = ctx.createLinearGradient(0,0,0,Hc); gr.addColorStop(0,C.sky1); gr.addColorStop(1,C.sky2);
+  ctx.fillStyle = gr; ctx.fillRect(0,0,Wc,Hc);
+  if (R.bonde){ drawBonde(R); flushTags(); return R; }
+  const y0max = Hc - 130;
+  const Ls = Math.min(Wc - 80, (y0max - 150)/Math.max(Math.sin(th), 0.05));
+  const y0 = Math.min(y0max, Hc*0.52 + Ls*sn/2 + 50);
+  const kMin = R.block ? Ls/RAMP_M.bloco : Math.max(Ls/RAMP_M.carro, Math.min(Wc*0.40/(1.52*P.L), Ls/7));
+  const k = kMin; VIEW_LEN = Ls/k;
+  const x0 = Math.max(24, (Wc - Ls*cs)/2), xt = x0 + Ls*cs, yt = y0 - Ls*sn;
+  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.lineTo(Wc,Hc); ctx.lineTo(0,Hc); ctx.closePath(); ctx.fillStyle = C.ramp; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.strokeStyle = C.road; ctx.lineWidth = 5; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+130,y0); ctx.strokeStyle = C.ramp2; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x0,y0,64,-th,0); ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.stroke();
+  ctx.save(); ctx.font = `800 ${Wc < 600 ? 16 : 22}px "IBM Plex Sans","Segoe UI",sans-serif`; ctx.textBaseline = 'middle';
+  ctx.fillStyle = C.text; ctx.fillText('θ', x0 + 74*Math.cos(th/2) + 4, y0 - 74*Math.sin(th/2) + 2);
+  const at = 'Inclinação θ = '+br(P.ang,1)+'°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
+  ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(lx, ly, tw+18, 36, 9); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18); ctx.restore();
+  OBS.push({x: lx + (tw+18)/2, y: ly + 18, w: tw + 18, h: 36});
+
+  const u = [cs, -sn], n = [-sn, -cs];
+  const T = (x,y) => [x0 + (x*cs - y*sn)*k, y0 - (x*sn + y*cs)*k];
+  const poly = (pts, fill, stroke, lw=2) => { ctx.beginPath(); pts.forEach((p,i)=>{ const q=T(p[0],p[1]); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }); ctx.closePath(); if (fill){ ctx.fillStyle=fill; ctx.fill(); } if (stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); } };
+  const kpx = 125 / R.W;
+  const val = prof && sh.val;
+  const lbl = (stuTxt, profTxt) => prof ? profTxt : stuTxt;
+  const comp = prof ? sh.comp : true;
+  const friCol = R.slip ? C.bad : C.cF;
+  let G;
+
+  if (R.block){
+    const s = sim.s, B = BLOCK;
+    poly([[s,0],[s+B,0],[s+B,B],[s,B]], C.crate, C.crate2, 3);
+    ctx.save(); ctx.strokeStyle = C.crate2; ctx.lineWidth = 2; ctx.globalAlpha = .45;
+    let a1=T(s,0), a2=T(s+B,B); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke();
+    a1=T(s+B,0); a2=T(s,B); ctx.beginPath(); ctx.moveTo(a1[0],a1[1]); ctx.lineTo(a2[0],a2[1]); ctx.stroke(); ctx.restore();
+    G = T(s+B/2, B/2);
+    const cB = T(s+B/2, 0);
+    OBS.push({x:G[0], y:G[1], w:B*k*1.1, h:B*k*1.1});
+    arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+    tag('Peso', G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
+    if (R.Wt*kpx > 8){
+      arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
+      tag('Puxa rampa abaixo', G[0]-u[0]*(R.Wt*kpx+70), G[1]-u[1]*(R.Wt*kpx+70)-14, C.cP, 14);
+    }
+    arrow(cB[0], cB[1], cB[0]+n[0]*R.N*kpx*0.95, cB[1]+n[1]*R.N*kpx*0.95, C.cN);
+    tag('Normal', cB[0]+n[0]*(R.N*kpx+20), cB[1]+n[1]*(R.N*kpx+20), C.cN, 16);
+    if (R.F > 0.5){
+      const c0 = T(s+B, 0.03);
+      arrow(c0[0], c0[1], c0[0]+u[0]*R.F*kpx, c0[1]+u[1]*R.F*kpx, friCol, 7);
+      tag('Atrito', c0[0]+u[0]*(R.F*kpx/2)-n[0]*30, c0[1]+u[1]*(R.F*kpx/2)-n[1]*30, friCol, 16);
+    }
+  } else {
+    const L = P.L, r = P.r, ovR = 0.28*L, ovF = 0.24*L, s = sim.s;
+    const cw = (x,y) => [s+x, y];
+    poly([[-ovR, r*0.55],[L+ovF, r*0.55],[L+ovF, r*1.75],[L*0.80, r*2.05],[L*0.62, r*2.15],[L*0.47, r*3.55],[L*0.05, r*3.6],[-ovR+0.05, r*2.4],[-ovR, r*2.2]].map(p=>cw(...p)), C.car, C.car2, 2.5);
+    poly([[L*0.12, r*2.3],[L*0.58, r*2.3],[L*0.45, r*3.35],[L*0.10, r*3.4]].map(p=>cw(...p)), C.glass, null);
+    { const pts = [[-ovR, r*0.55],[L+ovF, r*0.55],[L+ovF, r*1.75],[L*0.47, r*3.55],[L*0.05, r*3.6],[-ovR, r*2.2]].map(p=>T(...cw(...p)));
+      const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]), x1 = Math.min(...xs), x2 = Math.max(...xs), y1 = Math.min(...ys), y2 = Math.max(...ys);
+      OBS.push({x:(x1+x2)/2, y:(y1+y2)/2, w:(x2-x1)*0.86, h:(y2-y1)*0.8}); }
+    let q = T(...cw(L+ovF-0.06, r*1.45)); ctx.fillStyle='#ffd84d'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill();
+    q = T(...cw(-ovR+0.06, r*1.6)); ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(q[0],q[1],5,0,7); ctx.fill();
+    if (P.me > 0){
+      const sz = 0.3 + 0.45*Math.sqrt(P.me/2000), cx = P.be*L, cy = Math.max(P.he, r*2.2 + sz/2);
+      poly([[cx-sz/2,cy-sz/2],[cx+sz/2,cy-sz/2],[cx+sz/2,cy+sz/2],[cx-sz/2,cy+sz/2]].map(p=>cw(...p)), C.crate, C.crate2, 2);
+      const c = T(...cw(cx,cy)); ctx.save(); ctx.font='800 12px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle='#3b2410'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(P.me+' kg', c[0], c[1]); ctx.restore();
+    }
+    const drivenA = R.kind==='tracao' && P.drive!=='F', drivenB = R.kind==='tracao' && P.drive!=='R';
+    const brA = R.kind==='freio' && P.brake!=='F', brB = R.kind==='freio' && P.brake!=='R';
+    const contacts = [];
+    [[0, drivenA, brA, 'A'], [L, drivenB, brB, 'B']].forEach(([x, dr, bk, nm]) => {
+      const c = T(...cw(x, r)), rp = r*k;
+      ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
+      ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.55,0,7); ctx.fillStyle = dr ? C.cF : bk ? C.bad : '#a7b0ba'; ctx.fill();
+      ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
+      for (let i=0;i<4;i++){ const an = -sim.wheel + i*Math.PI/2 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.52, c[1]+Math.sin(an)*rp*0.52); ctx.stroke(); }
+      if (prof){ ctx.save(); ctx.font='800 13px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(nm, c[0], c[1]); ctx.restore(); }
+      contacts.push(T(...cw(x, 0)));
+    });
+    if (R.slip && sim.run){
+      [[0, drivenA||brA],[L, drivenB||brB]].forEach(([x,on]) => { if (on && Math.random()<.7) parts.push({p:T(...cw(x - Math.sign(R.F||1)*r*0.7, 0.1)), vx:-Math.sign(R.F||1)*(10+Math.random()*30), vy:-20-Math.random()*30, life:1}); });
+    }
+    for (let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.life-=0.02; p.p[0]+=p.vx*0.016; p.p[1]+=p.vy*0.016; if (p.life<=0){ parts.splice(i,1); continue; }
+      ctx.beginPath(); ctx.arc(p.p[0],p.p[1],(1.4-p.life)*16,0,7); ctx.fillStyle=`rgba(150,150,150,${p.life*.35})`; ctx.fill(); }
+    G = T(...cw(R.b, R.h));
+    if (prof && sh.dim){
+      const yd = -0.55, A1 = T(...cw(0,yd)), G1 = T(...cw(R.b,yd)), B1 = T(...cw(L,yd));
+      ctx.save(); ctx.strokeStyle = C.cDim; ctx.lineWidth = 1.5; ctx.setLineDash([4,4]);
+      [[0,0],[R.b,R.h],[L,0]].forEach(([x,y]) => { const a=T(...cw(x,y)), b=T(...cw(x,yd-0.12)); ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); });
+      ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(A1[0],A1[1]); ctx.lineTo(B1[0],B1[1]); ctx.stroke();
+      ctx.font='700 13px "IBM Plex Sans","Segoe UI",sans-serif'; ctx.fillStyle=C.cDim; ctx.textAlign='center';
+      tag('b = '+br(R.b)+' m', (A1[0]+G1[0])/2, (A1[1]+G1[1])/2+20, C.cDim, 13);
+      tag('L−b = '+br(L-R.b)+' m', (G1[0]+B1[0])/2, (G1[1]+B1[1])/2+20, C.cDim, 13);
+      const h1 = T(...cw(-ovR-0.35, 0)), h2 = T(...cw(-ovR-0.35, R.h));
+      ctx.beginPath(); ctx.moveTo(h1[0],h1[1]); ctx.lineTo(h2[0],h2[1]); ctx.stroke();
+      ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(h2[0],h2[1]); ctx.lineTo(G[0],G[1]); ctx.stroke(); ctx.setLineDash([]);
+      tag('h = '+br(R.h)+' m', (h1[0]+h2[0])/2 - 44, (h1[1]+h2[1])/2, C.cDim, 13);
+      ctx.restore();
+    }
+    arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+    tag(lbl('Peso','P'), G[0]+(prof?24:40), G[1]+R.W*kpx-8, C.cP, 16, val?fmtF(R.W):null);
+    if (comp && R.Wt*kpx > 8){
+      arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
+      tag(lbl('Puxa rampa abaixo','P·senθ'), G[0]-u[0]*(R.Wt*kpx+(prof?36:72)), G[1]-u[1]*(R.Wt*kpx+(prof?36:72)) - 14, C.cP, 14, val?fmtF(R.Wt):null);
+    }
+    if (prof && comp){
+      arrow(G[0],G[1], G[0]-n[0]*R.Wn*kpx, G[1]-n[1]*R.Wn*kpx, C.cP, 3, [7,6]);
+      tag('P·cosθ', G[0]-n[0]*R.Wn*kpx + 44, G[1]-n[1]*R.Wn*kpx + 4, C.cP, 13, val?fmtF(R.Wn):null);
+    }
+    [[contacts[0], R.Na, lbl('Normal','N_A')], [contacts[1], R.Nb, lbl('Normal','N_B')]].forEach(([c, N, nm]) => {
+      const len = Math.max(0, N)*kpx, col = N < 0 ? C.bad : C.cN;
+      arrow(c[0]-n[0]*len, c[1]-n[1]*len, c[0], c[1], col);
+      tag(nm, c[0]-n[0]*(len+16), c[1]-n[1]*(len+16), col, 15, val?fmtF(N):null);
+    });
+    [[contacts[0], R.Fa], [contacts[1], R.Fb]].forEach(([c, F]) => {
+      if (Math.abs(F) < 1) return; const len = F*kpx;
+      arrow(c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, friCol, 7);
+      const off = len/2 + Math.sign(len)*12;
+      tag(lbl('Atrito','F_at'), c[0]+u[0]*off - n[0]*32, c[1]+u[1]*off - n[1]*32, friCol, 15, val?fmtF(Math.abs(F)):null);
+    });
+    if (prof && sh.ma && Math.abs(R.a) > 1e-3){
+      const len = R.m*R.a*kpx; arrow(G[0],G[1], G[0]+u[0]*len, G[1]+u[1]*len, C.cMa, 4, [9,6]);
+      tag('m·a', G[0]+u[0]*(len+Math.sign(len)*32), G[1]+u[1]*(len+Math.sign(len)*32) - 14, C.cMa, 14, val?fmtF(R.m*R.a):null);
+    }
+    if (prof && sh.mom){
+      const Ms = [R.MB, R.MA, R.MF], Mx = Math.max(1, ...Ms.map(Math.abs));
+      Ms.forEach((M,i) => { if (Math.abs(M)<1) return; const rr = 30+i*14, span = Math.max(.3, Math.abs(M)/Mx*Math.PI*1.2), st = -th-Math.PI/2-0.4-i*0.25, ccw = M>0, en = ccw? st-span : st+span;
+        ctx.save(); ctx.strokeStyle=C.cM; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(G[0],G[1],rr,st,en,ccw); ctx.stroke(); ctx.restore();
+        const ex=G[0]+Math.cos(en)*rr, ey=G[1]+Math.sin(en)*rr, d=ccw?-1:1, tx=-Math.sin(en)*d, ty=Math.cos(en)*d; arrow(ex-tx*7,ey-ty*7,ex+tx*3,ey+ty*3,C.cM,2.5); });
+    }
+  }
+  ctx.save(); ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,0,Math.PI/2); ctx.fill(); ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,Math.PI,Math.PI*1.5); ctx.fill();
+  ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+  flushTags();
+  return R;
+}
+function cgMark(G){
+  ctx.save(); ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.fillStyle='#fff'; ctx.fill();
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,0,Math.PI/2); ctx.fill(); ctx.beginPath(); ctx.moveTo(G[0],G[1]); ctx.arc(G[0],G[1],8,Math.PI,Math.PI*1.5); ctx.fill();
+  ctx.beginPath(); ctx.arc(G[0],G[1],8,0,7); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore();
+}
+function drawBonde(R){
+  const th = R.th, cs = Math.cos(th), sn = Math.sin(th), B = BONDE;
+  const ground = Hc - 36, y0 = Hc - 215;
+  const Ls = Math.min(Wc - 160, (y0 - 70)/Math.max(Math.sin(th), 0.05));
+  const k = Math.max(Ls/RAMP_M.bonde, Math.min(Wc*0.17/BONDE.W, Ls/9)); VIEW_LEN = Ls/k;
+  const x0 = Math.max(80, (Wc - Ls*cs)/2);
+  const T = (x,y) => [x0 + (x*cs - y*sn)*k, y0 - (x*sn + y*cs)*k];
+  const u = [cs, -sn], n = [-sn, -cs];
+  const rm = VIEW_LEN, [xt, yt] = T(rm, 0), [xb, yb] = T(0, 0);
+  // encosta paralela ao cabo (abaixo da cabine), estações nas pontas
+  const off = B.D + B.H + 1.1;
+  const xg = sn > 0.02 ? ((y0 - ground)/k + off*cs)/sn : -50;
+  const tTop = T(rm + 1.2, -off), tBot = T(xg, -off);
+  ctx.fillStyle = C.ramp;
+  ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(Math.max(0, tBot[0]), ground); ctx.lineTo(tTop[0], tTop[1]); ctx.lineTo(Wc, tTop[1]); ctx.lineTo(Wc, Hc); ctx.lineTo(0, Hc); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C.ramp2; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(Math.max(0, tBot[0]), ground); ctx.lineTo(tTop[0], tTop[1]); ctx.lineTo(Wc, tTop[1]); ctx.stroke();
+  const station = (x1, x2, ytop, ybot) => { ctx.fillStyle = C.ramp2; ctx.fillRect(x1, ytop, x2-x1, ybot-ytop);
+    ctx.fillStyle = C.road; ctx.beginPath(); ctx.moveTo(x1-6, ytop); ctx.lineTo((x1+x2)/2, ytop-14); ctx.lineTo(x2+6, ytop); ctx.closePath(); ctx.fill(); };
+  station(xb-64, xb-8, yb-12, ground);
+  station(xt+8, xt+76, yt-12, tTop[1] + 2);
+  // cabo de apoio e cabo de tração
+  let p = T(-1.2, 0), q = T(rm+1.2, 0);
+  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  const s = sim.s, yh = B.e - 0.5;
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = C.cT; p = T(s+B.Lc+0.25, yh); q = T(rm+1.2, yh); ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  ctx.strokeStyle = C.muted; p = T(-1.2, yh); q = T(s-0.25, yh); ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  // carrinho
+  const plate = [[s-0.25,-0.5],[s+B.Lc+0.25,-0.5],[s+B.Lc+0.25,0.12],[s-0.25,0.12]];
+  ctx.beginPath(); plate.forEach((pt,i)=>{ const c=T(...pt); i?ctx.lineTo(c[0],c[1]):ctx.moveTo(c[0],c[1]); }); ctx.closePath();
+  ctx.fillStyle = C.cDim; ctx.fill(); ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.stroke();
+  p = T(-1.2, 0); q = T(rm+1.2, 0);
+  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]); ctx.stroke();
+  [0, B.Lc].forEach(x => { const c = T(s+x, B.r), rp = B.r*k;
+    ctx.beginPath(); ctx.arc(c[0],c[1],rp,0,7); ctx.fillStyle='#1f2328'; ctx.fill();
+    ctx.beginPath(); ctx.arc(c[0],c[1],rp*0.5,0,7); ctx.fillStyle='#a7b0ba'; ctx.fill();
+    ctx.strokeStyle='#3c434b'; ctx.lineWidth=2;
+    for (let i=0;i<3;i++){ const an = -sim.wheel + i*2.094 - th; ctx.beginPath(); ctx.moveTo(c[0],c[1]); ctx.lineTo(c[0]+Math.cos(an)*rp*0.5, c[1]+Math.sin(an)*rp*0.5); ctx.stroke(); } });
+  // cabine pendurada: balança suave até o ângulo da gravidade aparente
+  if (sim.phi == null) sim.phi = R.phi; sim.phi += (R.phi - sim.phi)*0.08;
+  const pv = T(s+B.Lc/2, -0.5), dir = [Math.sin(sim.phi), Math.cos(sim.phi)];
+  const G = [pv[0] + dir[0]*B.D*k, pv[1] + dir[1]*B.D*k];
+  const top = [G[0] - dir[0]*B.H/2*k, G[1] - dir[1]*B.H/2*k];
+  ctx.strokeStyle = C.text; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(pv[0],pv[1]); ctx.lineTo(top[0],top[1]); ctx.stroke();
+  ctx.beginPath(); ctx.arc(pv[0],pv[1],4,0,7); ctx.fillStyle = C.text; ctx.fill();
+  ctx.save(); ctx.translate(G[0], G[1]); ctx.rotate(-sim.phi);
+  const cw = B.W*k, ch = B.H*k;
+  ctx.fillStyle = C.car; ctx.strokeStyle = C.car2; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.roundRect(-cw/2, -ch/2, cw, ch, 10); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = C.glass; ctx.globalAlpha = .75; ctx.beginPath(); ctx.roundRect(-cw/2+6, -ch/2+6, cw-12, ch*0.42, 6); ctx.fill(); ctx.globalAlpha = 1;
+  const nShow = Math.min(P.pess, 8), pr = Math.min(ch*0.06, (cw-24)/24);
+  for (let i = 0; i < nShow; i++){ const px = -cw/2 + 12 + (i+0.5)*(cw-24)/8; ctx.fillStyle = '#4a3220'; ctx.beginPath(); ctx.arc(px, -ch/2 + 6 + ch*0.24, pr, 0, 7); ctx.fill(); ctx.fillRect(px - pr, -ch/2 + 6 + ch*0.24 + pr, pr*2, ch*0.12); }
+  ctx.restore();
+  OBS.push({x:G[0], y:G[1], w:cw*1.05, h:ch*1.05});
+  // forças
+  const kpx = 125 / R.W;
+  arrow(G[0],G[1], G[0], G[1]+R.W*kpx, C.cP);
+  tag('Peso', G[0]+40, G[1]+R.W*kpx-6, C.cP, 16);
+  if (R.Wt*kpx > 8){ arrow(G[0],G[1], G[0]-u[0]*R.Wt*kpx, G[1]-u[1]*R.Wt*kpx, C.cP, 4, [8,6]);
+    tag('Puxa cabo abaixo', G[0]-u[0]*(R.Wt*kpx+66), G[1]-u[1]*(R.Wt*kpx+66), C.cP, 14); }
+  [[0, R.Na], [B.Lc, R.Nb]].forEach(([x, N]) => { const c = T(s+x, 0), len = Math.max(0,N)*kpx, col = N < 0 ? C.bad : C.cN;
+    arrow(c[0], c[1], c[0]+n[0]*len, c[1]+n[1]*len, col);
+    tag('Normal', c[0]+n[0]*(len+16), c[1]+n[1]*(len+16), col, 14); });
+  if (R.T > 1){ const c = T(s+B.Lc+0.25, yh), len = R.T*kpx;
+    arrow(c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, C.cT, 7);
+    tag('Cabo puxa', c[0]+u[0]*(len+44), c[1]+u[1]*(len+44) - 6, C.cT, 15); }
+  cgMark(G);
+  ctx.save(); ctx.font = `800 ${Wc < 600 ? 15 : 20}px ${FONT_UI}`; ctx.textBaseline = 'middle';
+  const at = 'Inclinação do cabo θ = '+br(P.ang,1)+'°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
+  ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(lx, ly, tw+18, 36, 9); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18); ctx.restore();
+  OBS.push({x: lx + (tw+18)/2, y: ly + 18, w: tw + 18, h: 36});
+}
+
+
+// ---------------- painéis ----------------
+let lastP = 0;
+function panels(R, force){
+  const now = performance.now(); if (!force && now - lastP < 100) return; lastP = now;
+  if (R.bonde) return panelsBonde(R);
+  const v = sim.v, a = R.a, e = 1e-3, obj = R.block ? 'O bloco' : 'O carro';
+  let t, col = C.ok;
+  if (R.hold) t = obj+' fica PARADO';
+  else if (!R.block && R.Nb < 0){ t = 'O carro EMPINA!'; col = C.bad; }
+  else if (!R.block && R.slip && R.kind==='tracao'){ t = 'As rodas PATINAM' + (a > e ? ' (mas sobe)' : ' e o carro desce'); col = C.bad; }
+  else if (!R.block && R.slip && R.kind==='freio'){ t = 'O carro ESCORREGA freado'; col = C.bad; }
+  else if (Math.abs(v) < e){ t = a > e ? obj+' SOBE ↗' : a < -e ? obj+' DESCE ↘' : obj+' fica PARADO'; if (a < -e) col = C.warn; }
+  else if (v > 0){ t = a < -e ? obj+' sobe, mas vai parar' : obj+' SOBE ↗'; if (a < -e) col = C.warn; }
+  else { t = obj+' DESCE ↘'; col = C.warn; }
+  if (sim.msg) t += ' · ' + sim.msg;
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = col;
+  $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
+
+  // cabo de guerra
+  const down = R.Wt, up = Math.max(0, R.F), lim = R.lim, req = Math.abs(R.need||0);
+  const showLim = R.block ? P.mus > 0 : R.kind !== 'livre';
+  const ghost = !R.block && R.kind === 'tracao' && R.slip;
+  const sc = Math.max(down, up, showLim && isFinite(lim) ? lim : 0, ghost ? req : 0, 1) * 1.08;
+  const pct = x => Math.min(100, x/sc*100);
+  $('tugDown').style.width = pct(down)+'%'; $('tugDown').textContent = pct(down) > 25 ? fmtF(down) : '';
+  $('tugUp').style.width = pct(up)+'%'; $('tugUp').textContent = pct(up) > 25 ? fmtF(up) : '';
+  $('tugUp').style.background = R.slip ? C.bad : C.cF;
+  $('tugGhost').hidden = !ghost; if (ghost) $('tugGhost').style.width = pct(req)+'%';
+  $('tugLim').hidden = !(showLim && isFinite(lim)); $('tugLim').style.left = pct(lim)+'%';
+  $('tugLimTxt').textContent = 'limite do atrito ' + fmtF(lim);
+
+  const D = `<b class="dn">${fmtF(down)}</b>`, U = `<b class="up">${fmtF(up)}</b>`, LM = `<b>${fmtF(lim)}</b>`;
+  let s;
+  if (R.block){
+    if (P.ang === 0) s = 'Rampa plana: nada puxa o bloco para baixo da rampa. Ele fica parado.';
+    else if (P.mus === 0) s = `A rampa puxa o bloco para baixo com ${D} e <b>nada empurra para cima</b> (sem atrito). Ele desce.`;
+    else if (R.hold) s = `Para segurar o bloco o atrito precisa fazer ${D}. O atrito aguenta até ${LM}. <b>Dá conta: fica parado.</b>`;
+    else s = `Para segurar o bloco o atrito precisaria fazer ${D}, mas só aguenta ${LM}. <b>Não dá conta: escorrega</b> (e escorregando o atrito cai para ${U}).`;
+  } else if (R.kind === 'livre') s = `Em ponto morto ninguém empurra o carro para cima. Só a ladeira puxando para baixo com ${D}: <b>desce</b>.`;
+  else if (R.kind === 'freio') s = R.hold ? `Para segurar o carro precisa de ${D}. As rodas travadas aguentam até ${LM}. <b>Segura.</b>` : `Para segurar precisaria de ${D}, mas as rodas travadas só aguentam ${LM}. <b>Escorrega.</b>`;
+  else if (R.slip) s = `Você pediu <b>${fmtF(req)}</b> ao pneu (contorno tracejado), mas o piso só aguenta ${LM}. <b>O pneu patina</b> e empurra só ${U}${up < down ? ', menos que a ladeira puxa: o carro desce' : ''}.`;
+  else if (Math.abs(up - down) < 1) s = `Empurra ${U} = puxa ${D}. Empate: velocidade constante.`;
+  else s = up > down ? `O pneu empurra o carro para cima com ${U}. A ladeira puxa para baixo com ${D}. <b>Laranja ganha: sobe.</b>` : `O pneu empurra para cima com ${U}, mas a ladeira puxa com ${D}. <b>Vermelho ganha: desce.</b> Pise mais no acelerador.`;
+  $('say').innerHTML = s;
+
+  if (!R.block){
+    const pa = Math.max(0, Math.min(100, R.Na/R.Wn*100)), pb = 100 - pa;
+    $('axBar').innerHTML = `<div style="width:${pa}%;background:${C.cN}">trás ${pa.toFixed(0)}%</div><div style="width:${pb}%;background:${C.accent}">frente ${pb.toFixed(0)}%</div>`;
+    const who = R.kind==='freio' ? (P.brake==='R'?'de trás':P.brake==='F'?'da frente':'todas') : (P.drive==='R'?'de trás':P.drive==='F'?'da frente':'todas');
+    $('axTxt').innerHTML = R.kind==='livre' ? 'Em ponto morto nenhuma roda faz força.' : `As rodas que ${R.kind==='freio'?'freiam':'puxam'} são as <b>${who}</b> (miolo ${R.kind==='freio'?'vermelho':'laranja'} no desenho). ${a > 0.05 ? 'Acelerando na subida, o peso vai para trás.' : ''}`;
+  }
+
+  if (P.tab === 'prof' && !R.block){
+    const n = x => br(x/1000, 2), m = R.m*R.a;
+    $('eqs').innerHTML = `
+    <div><div class="step">ΣF<sub>y</sub> = 0 (perpendicular à rampa)</div>N<sub>A</sub> + N<sub>B</sub> − mg·cosθ = 0<br><span class="n">${n(R.Na)} + ${n(R.Nb)} − ${n(R.Wn)} = 0 kN</span></div>
+    <div><div class="step">ΣF<sub>x</sub> = m·a (ao longo da rampa)</div>F<sub>at</sub> − mg·senθ = m·a<br><span class="n">${n(R.F)} − ${n(R.Wt)} = ${n(m)} kN → a = ${br(R.a,3)} m/s²</span></div>
+    <div><div class="step">ΣM<sub>G</sub> = I<sub>G</sub>·α = 0 (translação)</div>N<sub>B</sub>·(L−b) − N<sub>A</sub>·b + F<sub>at</sub>·h = 0<br><span class="n">${n(R.Nb)}·${br(R.L-R.b)} − ${n(R.Na)}·${br(R.b)} + ${n(R.F)}·${br(R.h)} = 0</span></div>
+    <div><div class="step">Resolvendo</div>N<sub>B</sub> = (mg·cosθ·b − F<sub>at</sub>·h)/L = <b>${fmtF(R.Nb)}</b><br>N<sub>A</sub> = <b>${fmtF(R.Na)}</b> · μ<sub>mín</sub> = F<sub>at</sub>/N<sub>motriz</sub> = <b>${br(R.muReq,3)}</b></div>`;
+  }
+}
+
+function panelsBonde(R){
+  const v = sim.v, a = R.a, e = 1e-3;
+  let t, col = C.ok;
+  if (P.mode === 'romper'){ t = 'O CABO ARREBENTOU: o bondinho desce'; col = C.bad; }
+  else if (R.hold) t = 'O bondinho fica PARADO';
+  else if (Math.abs(v) < e){ t = a > e ? 'O bondinho SOBE ↗' : a < -e ? 'O bondinho DESCE ↘' : 'O bondinho fica PARADO'; if (a < -e) col = C.warn; }
+  else if (v > 0){ t = a < -e ? 'O bondinho sobe, mas vai parar' : 'O bondinho SOBE ↗'; if (a < -e) col = C.warn; }
+  else { t = 'O bondinho DESCE ↘'; col = C.warn; }
+  if (sim.msg) t += ' · ' + sim.msg;
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = col;
+  $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
+  const down = R.Wt, up = R.T, sc = Math.max(down, up, 1)*1.08, pct = x => Math.min(100, x/sc*100);
+  $('tugDown').style.width = pct(down)+'%'; $('tugDown').textContent = pct(down) > 25 ? fmtF(down) : '';
+  $('tugUp').style.width = pct(up)+'%'; $('tugUp').textContent = pct(up) > 25 ? fmtF(up) : ''; $('tugUp').style.background = C.cT;
+  $('tugGhost').hidden = true; $('tugLim').hidden = true;
+  const D = `<b class="dn">${fmtF(down)}</b>`, U = `<b style="color:var(--cT)">${fmtF(up)}</b>`;
+  let s;
+  if (P.mode === 'romper') s = `Sem o cabo de tração, só a parte do peso age ao longo do cabo (${D}). O bondinho desce com a = g·senθ = <b>${br(g*Math.sin(R.th))} m/s²</b>. A cabine fica perpendicular ao cabo: lá dentro parece que não existe ladeira.`;
+  else if (R.hold) s = `O cabo puxa ${U}, exatamente a parte do peso ao longo do cabo (${D}). <b>Equilíbrio: fica parado.</b>`;
+  else s = up > down ? `O cabo puxa para cima com ${U}. A parte do peso puxa para baixo com ${D}. <b>Azul ganha: sobe.</b>` : `O cabo puxa para cima com ${U}, mas a parte do peso puxa para baixo com ${D}. <b>Vermelho ganha: desce.</b> Aumente a força no cabo.`;
+  const sw = deg(R.phi);
+  if (Math.abs(sw) > 0.5 && P.mode !== 'romper') s += ` A cabine balança <b>${br(Math.abs(sw),1)}° para ${sw < 0 ? 'trás' : 'frente'}</b> porque está acelerando.`;
+  $('say').innerHTML = s;
+  const pa = Math.max(0, Math.min(100, R.Na/R.Wn*100)), pb = 100 - pa;
+  $('axBar').innerHTML = `<div style="width:${pa}%;background:${C.cN}">roda de baixo ${pa.toFixed(0)}%</div><div style="width:${pb}%;background:${C.accent}">roda de cima ${pb.toFixed(0)}%</div>`;
+  $('axTxt').innerHTML = 'Puxado <b>por cima</b> pelo cabo, o bondinho joga peso na roda de cima. No carro é o contrário: o chão empurra <b>por baixo</b> e o peso vai para a roda de trás.';
+  const n = x => br(x/1000, 2);
+  $('eqs').innerHTML = `
+    <div><div class="step">ΣF<sub>x</sub> = m·a (ao longo do cabo)</div>T − mg·senθ = m·a<br><span class="n">${n(R.T)} − ${n(R.Wt)} = ${n(R.m*a)} kN → a = ${br(a,3)} m/s²</span></div>
+    <div><div class="step">ΣF<sub>y</sub> = 0 (perpendicular ao cabo)</div>N<sub>A</sub> + N<sub>B</sub> − mg·cosθ = 0<br><span class="n">${n(R.Na)} + ${n(R.Nb)} − ${n(R.Wn)} = 0 kN</span></div>
+    <div><div class="step">ΣM no pino do carrinho = 0 (carrinho leve)</div>N<sub>B</sub>·L/2 − N<sub>A</sub>·L/2 − T·e = 0<br><span class="n">N<sub>B</sub> − N<sub>A</sub> = 2·e·T/L = ${n(2*BONDE.e*R.T/BONDE.Lc)} kN (L = ${br(BONDE.Lc,1)} m, e = ${br(BONDE.e,1)} m)</span></div>
+    <div><div class="step">Cabine pendurada (pêndulo)</div>alinha com g − a → φ = <b>${br(Math.abs(sw),1)}°</b> da vertical<br><span class="n">m = 2000 + 75·${P.pess} = ${R.m} kg</span></div>`;
+}
+
+// ---------------- botões ----------------
+const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
+$('btnTheme').onclick = () => { const dark = !isDark(); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; colors(); };
+$('btnFull').onclick = () => { try { const pr = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); pr && pr.catch(() => {}); } catch(e){} };
+
+setTab('prof');
+try { document.fonts && document.fonts.ready.then(() => {}); } catch(e){}
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now-last)/1000)*speed; last = now;
+  if (sim.run) for (let i=0;i<4;i++) step(dt/4);
+  panels(draw());
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# arquivos locais que não vão para o repositório público
+.claude/
+img-aula/
+_versoes/
+publicar/

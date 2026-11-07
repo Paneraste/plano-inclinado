@@ -174,7 +174,11 @@ canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var
 footer{padding-block:4px 28px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));color:var(--faint);font-size:13px;display:flex;gap:6px 18px;flex-wrap:wrap}
 footer a{color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.tug .bar{transition:none}}
+.visits{display:inline-flex;align-items:center;gap:6px}
+.visits img{height:20px;vertical-align:middle}
 </style>
+<!-- Estatísticas anônimas (sem cookies, sem dados pessoais): GoatCounter. Painel: https://plano-inclinado.goatcounter.com -->
+<script data-goatcounter="https://plano-inclinado.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <header class="top">
@@ -268,6 +272,8 @@ footer a{color:var(--muted)}
   <span>Feito por <b>Arthur Vinagre</b> · Engenharia Mecatrônica</span>
   <span>Exemplo 6/1: Meriam &amp; Kraige, <i>Mecânica para Engenharia: Dinâmica</i></span>
   <span>Código aberto (licença MIT) · <a id="ghLink" href="https://github.com/Paneraste/plano-inclinado" target="_blank" rel="noopener">código no GitHub</a></span>
+  <span class="visits" id="visits" hidden>Visitas (hoje / total): <img id="visitsImg" alt="contador de visitas"></span>
+  <span>Estatísticas anônimas, sem cookies</span>
 </footer>
 
 <script>
@@ -342,6 +348,7 @@ $('exps').onclick = e => {
   setTab(P.tab, false);
   if (set === 'ex') loadExample(); else applySet(set);
   expOn = i; renderExps(); buildControls(); fullReset(); sim.run = true; playBtn();
+  track('experimento/' + P.tab + '/' + (i+1) + '-' + EXPS[P.tab][i][0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''));
 };
 function applySet(set){
   Object.assign(P, set);
@@ -372,7 +379,12 @@ function setTab(t, reset=true){
   renderLegend();
   if (reset){ expOn = null; renderExps(); buildControls(); fullReset(); }
 }
-$('tabs').onclick = e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); };
+// ---------------- estatísticas de uso (anônimas) ----------------
+// Cada clique vira um evento no GoatCounter: aba/<cenário>, experimento/<cenário>/<n>, soltar/<cenário>, tema, tela-cheia.
+const ONLINE = /github\.io$/.test(location.hostname);
+function track(name){ try { if (ONLINE && window.goatcounter && window.goatcounter.count) window.goatcounter.count({path: name, title: name, event: true}); } catch(e){} }
+if (ONLINE){ const im = $('visitsImg'); im.src = 'https://hits.sh/paneraste.github.io/plano-inclinado.svg?view=today-total&label=visitas&color=1f4fd8'; im.onload = () => $('visits').hidden = false; }
+$('tabs').onclick = e => { const b = e.target.closest('button'); if (b){ setTab(b.dataset.t); track('aba/' + b.dataset.t); } };
 
 // ---------------- ícones dos controles ----------------
 const ICO = {
@@ -569,7 +581,7 @@ function step(dt){
   if (sim.s <= lo && sim.v < 0){ sim.v = 0; sim.run = false; sim.stopped = true; sim.msg = 'chegou lá embaixo'; playBtn(); }
 }
 function playBtn(){ const b = $('btnPlay'); b.textContent = sim.run ? '⏸ Pausar' : (sim.stopped ? '⟲ Soltar de novo' : '▶ Soltar');  }
-$('btnPlay').onclick = () => { if (sim.stopped) fullReset(); sim.run = !sim.run; playBtn(); };
+$('btnPlay').onclick = () => { if (sim.stopped) fullReset(); sim.run = !sim.run; playBtn(); if (sim.run) track('soltar/' + P.tab); };
 $('btnReset').onclick = fullReset;
 let speed = 1;
 $('btnSlow').onclick = () => { speed = speed === 1 ? 0.35 : 1; $('btnSlow').classList.toggle('on', speed !== 1); };
@@ -1016,8 +1028,8 @@ function panelsBonde(R){
 
 // ---------------- botões ----------------
 const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; };
-$('btnTheme').onclick = () => { const dark = !isDark(); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; colors(); };
-$('btnFull').onclick = () => { try { const pr = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); pr && pr.catch(() => {}); } catch(e){} };
+$('btnTheme').onclick = () => { const dark = !isDark(); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; colors(); track('tema/' + (dark ? 'escuro' : 'claro')); };
+$('btnFull').onclick = () => { track('tela-cheia'); try { const pr = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); pr && pr.catch(() => {}); } catch(e){} };
 
 setTab('prof');
 try { document.fonts && document.fonts.ready.then(() => {}); } catch(e){}

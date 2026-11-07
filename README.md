@@ -1,5 +1,8 @@
 # Plano Inclinado Passo a Passo
 
+![Visitas ao site](https://hits.sh/paneraste.github.io/plano-inclinado.svg?view=today-total&label=visitas%20ao%20site&color=1f4fd8)
+![Visitas ao repositório](https://hits.sh/github.com/Paneraste/plano-inclinado.svg?view=today-total&label=visitas%20ao%20c%C3%B3digo&color=555555)
+
 Simulação interativa de **diagrama de corpo livre no plano inclinado**, feita para aulas de Mecânica (Física I, Mecânica Geral, Dinâmica). Mostra as forças em ação, o que acontece com o corpo (sobe, desce, fica parado, patina, empina) e por quê, em linguagem que o aluno entende. Também traz um modo professor com as equações completas.
 
 **Abrir agora (sem instalar nada):** https://paneraste.github.io/plano-inclinado/
@@ -72,6 +75,14 @@ Ou use **Code → Download ZIP** no GitHub, ou **Fork** para ter a sua própria 
 - Fontes [IBM Plex Sans e IBM Plex Mono](https://github.com/IBM/plex) (SIL Open Font License), carregadas do Google Fonts. Offline, o navegador usa a fonte do sistema.
 
 Se usar em aula ou adaptar, uma menção ao projeto é bem-vinda. Sugestões e correções: abra uma *issue* ou um *pull request*.
+
+## Estatísticas e privacidade
+
+O site publicado conta visitas para o autor acompanhar o uso do projeto:
+- **Contador público** (hits.sh): visitas de hoje e total, no rodapé e no topo deste README.
+- **Estatísticas anônimas** (GoatCounter, código aberto): páginas, origem das visitas, país, navegador e tamanho de tela, além de eventos de uso: qual cenário foi aberto (`aba/…`), qual experimento foi clicado (`experimento/…`), quando a simulação foi solta (`soltar/…`), troca de tema e tela cheia.
+
+Não há cookies e nada do que é digitado ou ajustado é enviado. Só conta no endereço `*.github.io`: a cópia local (`index.html` aberto no computador) não envia nada. Se você publicar a sua própria cópia, troque ou apague a linha `data-goatcounter` no início do `index.html` e a linha do `hits.sh` no script.
 
 ## Licença
 

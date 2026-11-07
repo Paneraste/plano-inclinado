@@ -67,9 +67,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* ---------- grade principal ---------- */
 .app{display:grid;grid-template-columns:270px minmax(0,1fr) 320px;grid-template-areas:"exp stage insp";gap:16px;padding-block:16px 20px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));align-items:start}
-.c-exp{grid-area:exp}.c-stage{grid-area:stage}.c-insp{grid-area:insp}
+.c-exp{grid-area:exp}.c-stage{grid-area:stage;align-self:stretch}.c-insp{grid-area:insp}
 @media (max-width:1240px){.app{grid-template-columns:minmax(0,1fr) 320px;grid-template-areas:"stage insp" "stage exp"}}
-@media (max-width:860px){.app{grid-template-columns:1fr;grid-template-areas:"stage" "exp" "insp";padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.top-in{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.scen{margin-left:0;width:100%}.scen button{flex:1;justify-content:center;padding:8px 6px}}
+@media (max-width:860px){.top{position:static}.app>.c-stage{display:contents}.c-stage>.stage{top:0;border-radius:0 0 var(--r) var(--r)}.c-stage>.tug{order:2}.c-exp{order:3}.c-insp{order:4}.c-stage>.stage{order:1}.stage canvas{height:clamp(200px,32vh,300px)}.app{display:flex;flex-direction:column;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.top-in{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.scen{margin-left:0;width:100%}.scen button{flex:1;justify-content:center;padding:8px 6px}}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
 .ph{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px 0}
@@ -89,8 +89,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .obs{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--soft);border-left:3px solid var(--accent);font-size:14px;line-height:1.55}
 
 /* ---------- palco ---------- */
-.stage{position:relative;overflow:hidden}
-canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var(--r) var(--r) 0 0}
+/* o palco fica preso logo abaixo da barra do topo enquanto as opções rolam */
+.stage{position:sticky;top:calc(var(--topH,64px) + 10px);z-index:5;overflow:hidden}
+canvas{display:block;width:100%;height:clamp(300px,calc(100vh - var(--topH,64px) - 100px),640px);border-radius:var(--r) var(--r) 0 0}
 .verdict{position:absolute;top:14px;left:14px;right:14px;pointer-events:none;display:flex}
 .verdict div{display:inline-flex;align-items:center;gap:10px;padding:8px 18px 8px 8px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,var(--panel));border:2px solid currentColor;font-size:20px;font-weight:700;letter-spacing:-.01em;box-shadow:var(--shadow);max-width:100%}
 .verdict div::before{content:"■";display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--vc,currentColor);color:#fff;font-size:14px;flex:none}
@@ -1170,6 +1171,8 @@ const isDark = () => { const t = document.documentElement.dataset.theme; return 
 $('btnTheme').onclick = () => { const dark = !isDark(); document.documentElement.dataset.theme = dark ? 'dark' : 'light'; colors(); track('tema/' + (dark ? 'escuro' : 'claro')); };
 $('btnFull').onclick = () => { track('tela-cheia'); try { const pr = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); pr && pr.catch(() => {}); } catch(e){} };
 
+const setTopH = () => document.documentElement.style.setProperty('--topH', $('tabs').closest('header').offsetHeight + 'px');
+setTopH(); window.addEventListener('resize', setTopH);
 setTab('prof');
 try { document.fonts && document.fonts.ready.then(() => {}); } catch(e){}
 let last = performance.now();

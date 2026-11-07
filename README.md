@@ -72,6 +72,7 @@ Ou use **Code → Download ZIP** no GitHub, ou **Fork** para ter a sua própria 
 - **Autor:** Arthur Vinagre, estudante de Engenharia Mecatrônica. Feito a partir da aula de Mecânica Geral II (cinética do corpo rígido em translação), em 2026-11.
 - **Exemplo 6/1:** J. L. Meriam e L. G. Kraige, *Mecânica para Engenharia: Dinâmica*, 7ª ed., LTC.
 - Desenvolvido com o auxílio do [Claude Code](https://claude.com/claude-code) (Anthropic).
+- Fórmulas em LaTeX desenhadas com o [MathJax](https://www.mathjax.org/) 3.2.2 (licença Apache 2.0), copiado em `vendor/mathjax/` para funcionar offline.
 - Fontes [IBM Plex Sans e IBM Plex Mono](https://github.com/IBM/plex) (SIL Open Font License), carregadas do Google Fonts. Offline, o navegador usa a fonte do sistema.
 
 Se usar em aula ou adaptar, uma menção ao projeto é bem-vinda. Sugestões e correções: abra uma *issue* ou um *pull request*.

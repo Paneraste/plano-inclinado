@@ -178,7 +178,7 @@ canvas{display:block;width:100%;height:clamp(240px,calc(100vh - var(--topH,64px)
 /* ---------- equações ---------- */
 .eqwrap{padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-bottom:20px}
 @media (max-width:860px){.eqwrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}}
-.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.eq{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:12px}
 .eq > div{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:var(--f-math);font-size:17px;line-height:1.65;min-width:0;overflow-x:auto}
 .eq .step{font:700 11.5px var(--f-ui);text-transform:uppercase;letter-spacing:.07em;color:var(--accent);margin-bottom:4px}
 .eq .n{font:500 13.5px var(--f-num);color:var(--muted)}
@@ -192,6 +192,13 @@ footer a{color:var(--muted)}
 </style>
 <!-- Estatísticas anônimas (sem cookies, sem dados pessoais): GoatCounter. Painel: https://plano-inclinado.goatcounter.com -->
 <script data-goatcounter="https://plano-inclinado.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], macros: { sen: '\\operatorname{sen}' } },
+  svg: { fontCache: 'global' },
+  startup: { typeset: false, ready(){ MathJax.startup.defaultReady(); MathJax.startup.promise.then(() => document.dispatchEvent(new Event('mathjax-pronto'))); } } };
+</script>
+<script defer src="vendor/mathjax/tex-svg.js"></script>
+<style>mjx-container{font-size:108%!important}.eq mjx-container[display="true"]{margin:.2em 0!important}</style>
 </head>
 <body>
 <header class="top">
@@ -242,7 +249,7 @@ footer a{color:var(--muted)}
       <div class="ph"><h2>Somatório de forças (as setas apontam para onde cada força empurra)</h2></div>
       <div class="pb tug-wrap">
         <div>
-          <div class="rowt">Ao longo da rampa <span>ΣF<sub>x</sub> = m·a</span></div>
+          <div class="rowt">Ao longo da rampa <span>\(\sum F_x = m\,a\)</span></div>
           <div class="row">
             <div class="half left"><div class="bar" id="tugDown"></div></div>
             <div class="half right"><div class="ghost" id="tugGhost" hidden></div><div class="bar" id="tugUp"></div><div class="limit" id="tugLim"><span id="tugLimTxt"></span></div></div>
@@ -253,7 +260,7 @@ footer a{color:var(--muted)}
           <div class="restxt" id="resTxt"></div>
         </div>
         <div>
-          <div class="rowt">Perpendicular à rampa <span>ΣF<sub>y</sub> = 0</span></div>
+          <div class="rowt">Perpendicular à rampa <span>\(\sum F_y = 0\)</span></div>
           <div class="row thin">
             <div class="half left"><div class="bar" id="perpDown"></div></div>
             <div class="half right"><div class="bar" id="perpUp"></div></div>
@@ -281,7 +288,7 @@ footer a{color:var(--muted)}
         <div class="legend" id="legend"></div>
         <div class="chk" id="profChk" hidden>
           <label><input type="checkbox" id="shVal" checked> Valores nas setas</label>
-          <label><input type="checkbox" id="shComp" checked> Decompor o peso (P·senθ e P·cosθ)</label>
+          <label><input type="checkbox" id="shComp" checked> Decompor o peso (\(P\sen\theta\) e \(P\cos\theta\))</label>
           <label><input type="checkbox" id="shMa" checked> Vetor m·a</label>
           <label><input type="checkbox" id="shDim" checked> Medidas b, h, L</label>
           <label><input type="checkbox" id="shMom"> Momentos em G</label>
@@ -292,7 +299,7 @@ footer a{color:var(--muted)}
 </main>
 
 <div class="eqwrap"><section class="panel eqcard" id="eqcard" hidden>
-  <div class="ph"><h2>Equações · 1º diagrama de corpo livre → 2º ΣF e ΣM → 3º resolver</h2></div>
+  <div class="ph"><h2>Equações · 1º diagrama de corpo livre → 2º \(\sum F\) e \(\sum M\) → 3º resolver</h2></div>
   <div class="pb"><div class="eq" id="eqs"></div></div>
 </section></div>
 
@@ -308,6 +315,10 @@ footer a{color:var(--muted)}
 (() => {
 const g = 9.81, rad = d => d*Math.PI/180, deg = r => r*180/Math.PI;
 const $ = id => document.getElementById(id);
+// LaTeX: o MathJax desenha as fórmulas escritas entre \( e \). setMath só redesenha quando o texto muda.
+function typeset(el){ try { if (window.MathJax && MathJax.typesetPromise){ if (MathJax.typesetClear) MathJax.typesetClear([el]); MathJax.typesetPromise([el]).catch(() => {}); } } catch(e){} }
+function setMath(el, html){ if (el._h === html) return; el._h = html; el.innerHTML = html; typeset(el); }
+document.addEventListener('mathjax-pronto', () => typeset(document.body));
 const br = (x, d=2) => x.toFixed(d).replace('.', ',');
 const fmtF = N => Math.abs(N) >= 1000 ? br(N/1000, 1)+' kN' : N.toFixed(0)+' N';
 
@@ -324,9 +335,9 @@ const CARGA = { '0':[0,0.5,0.9,'Sem carga'], 'R':[600,-0.1,0.9,'Porta-malas'], '
 // ---------------- experimentos ----------------
 const EXPS = {
   bloco: [
-    ['Sem atrito: sempre desce', {ang:25, piso:'liso', mB:10}, 'Sem atrito nada segura o bloco. <b>Mude a massa</b> e solte de novo: ele desce do mesmo jeito. A aceleração é g·senθ e não depende da massa.'],
+    ['Sem atrito: sempre desce', {ang:25, piso:'liso', mB:10}, 'Sem atrito nada segura o bloco. <b>Mude a massa</b> e solte de novo: ele desce do mesmo jeito. A aceleração é \\(a = g\\sen\\theta\\) e não depende da massa.'],
     ['O atrito segura', {ang:15, piso:'madeira', mB:10}, 'A ladeira puxa pouco e o atrito aguenta mais do que isso. O bloco fica parado. O atrito só faz a força <b>necessária</b> para segurar.'],
-    ['Ache o ângulo do escorregão', {ang:18, piso:'madeira', mB:10}, '<b>Aumente a inclinação aos poucos</b> e observe. Na madeira ele começa a escorregar perto de <b>21,8°</b> (tanθ = μ). Troque para borracha e veja o ângulo subir.'],
+    ['Ache o ângulo do escorregão', {ang:18, piso:'madeira', mB:10}, '<b>Aumente a inclinação aos poucos</b> e observe. Na madeira ele começa a escorregar perto de <b>21,8°</b> (\\(\\tan\\theta = \\mu_s\\)). Troque para borracha e veja o ângulo subir.'],
     ['Rampa íngreme: escorrega', {ang:35, piso:'madeira', mB:10}, 'A barra vermelha passou do limite do atrito. O bloco escorrega e o atrito diminui (atrito cinético).'],
   ],
   carro: [
@@ -341,16 +352,16 @@ const EXPS = {
   ],
   bonde: [
     ['Subindo com 20 pessoas', {ang:25, pess:20, T:18, mode:'puxar'}, 'O <b>cabo de tração</b> puxa o bondinho morro acima. A parte do peso puxa para baixo. Barra azul maior que a vermelha: sobe.'],
-    ['Parado no meio do caminho', {ang:25, pess:20, mode:'segurar'}, 'O cabo faz exatamente a força da parte do peso ao longo do cabo (P·senθ). As forças se equilibram e ele fica parado lá no alto.'],
+    ['Parado no meio do caminho', {ang:25, pess:20, mode:'segurar'}, 'O cabo faz exatamente a força da parte do peso ao longo do cabo (\\(P\\sen\\theta\\)). As forças se equilibram e ele fica parado lá no alto.'],
     ['Lotado: o motor não dá conta', {ang:25, pess:60, T:18, mode:'puxar'}, 'Mesma força no cabo, mas com 60 pessoas a barra vermelha cresce e ganha. <b>Aumente a força do cabo</b> até ele voltar a subir.'],
     ['Arrancada forte: a cabine balança', {ang:20, pess:20, T:30, mode:'puxar'}, 'Acelerando forte, a cabine pendurada <b>balança para trás</b>, como você no ônibus que arranca. Veja também a roda de cima carregar mais que a de baixo.'],
-    ['Cabo mais íngreme', {ang:40, pess:20, T:18, mode:'puxar'}, 'Mesmo motor, cabo mais inclinado: P·senθ cresce e o bondinho já não sobe.'],
-    ['O cabo arrebenta!', {ang:25, pess:20, mode:'romper'}, 'Sem o cabo de tração nada puxa para cima: desce com a = g·senθ. Na vida real o <b>freio de emergência</b> trava no cabo de apoio.'],
+    ['Cabo mais íngreme', {ang:40, pess:20, T:18, mode:'puxar'}, 'Mesmo motor, cabo mais inclinado: \\(P\\sen\\theta\\) cresce e o bondinho já não sobe.'],
+    ['O cabo arrebenta!', {ang:25, pess:20, mode:'romper'}, 'Sem o cabo de tração nada puxa para cima: desce com \\(a = g\\sen\\theta\\). Na vida real o <b>freio de emergência</b> trava no cabo de apoio.'],
   ],
   prof: [
-    ['Exemplo 6/1 da aula (Meriam)', 'ex', 'Caminhonete de 1500 kg, de 0 a 50 km/h em 60 m, rampa de 10%, tração traseira. Resposta do livro: N_A = 8,10 kN, N_B = 6,55 kN, μ mínimo = 0,479.'],
-    ['Carro empinando', {ang:10, F:30, mode:'motor', drive:'R', mus:1.2, muk:1.0, me:1500, be:-0.2, he:1.2}, 'Carga pesada, alta e atrás do eixo, com muita força: F_at·h passa de mg·cosθ·b e N_B fica negativa. A frente levanta.'],
-    ['4×4 na terra', {ang:20, F:6, mode:'motor', drive:'4', mus:0.45, muk:0.35}, 'Com 4×4 todo o peso ajuda na tração: rampa máxima tanθ = μ. Compare com tração traseira e dianteira.'],
+    ['Exemplo 6/1 da aula (Meriam)', 'ex', 'Caminhonete de 1500 kg, de 0 a 50 km/h em 60 m, rampa de 10%, tração traseira. Resposta do livro: \\(N_A = 8{,}10\\ \\mathrm{kN}\\), \\(N_B = 6{,}55\\ \\mathrm{kN}\\) e \\(\\mu_{\\min} = 0{,}479\\).'],
+    ['Carro empinando', {ang:10, F:30, mode:'motor', drive:'R', mus:1.2, muk:1.0, me:1500, be:-0.2, he:1.2}, 'Carga pesada, alta e atrás do eixo, com muita força: \\(F_{at}\\,h\\) passa de \\(m g\\cos\\theta\\, b\\) e \\(N_B\\) fica negativa. A frente levanta.'],
+    ['4×4 na terra', {ang:20, F:6, mode:'motor', drive:'4', mus:0.45, muk:0.35}, 'Com 4×4 todo o peso ajuda na tração: rampa máxima \\(\\tan\\theta = \\mu\\). Compare com tração traseira e dianteira.'],
     ['Freio só na frente, ladeira forte', {ang:25, mode:'freio', brake:'F', mus:0.8, muk:0.7}, 'Parado na ladeira, a frente fica mais leve. Freando só na frente o carro escorrega; troque para freio nas 4 rodas e ele segura.'],
   ],
 };
@@ -369,6 +380,7 @@ function renderExps(){
   $('exps').innerHTML = list.map(([t, set], i) => { const [o, why] = preview(set);
     return `<button data-i="${i}" class="${expOn===i?'on':''}"><span class="n">${i+1}</span><span class="t">${t}</span><span class="o ${o}">${why}</span></button>`; }).join('');
   $('obs').innerHTML = expOn == null ? 'Escolha um experimento acima ou mexa nos ajustes: a simulação responde na hora. Use <b>Desmontar</b> para ver quem faz cada força.' : list[expOn][2];
+  typeset($('obs'));
 }
 $('exps').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -404,7 +416,7 @@ function setTab(t, reset=true){
   $('eqcard').hidden = t !== 'prof' && t !== 'bonde';
   $('profChk').hidden = t !== 'prof';
   $('axle').hidden = t === 'bloco';
-  renderLegend();
+  renderLegend(); typeset($('legend'));
   if (reset){ expOn = null; renderExps(); buildControls(); fullReset(); }
 }
 // ---------------- estatísticas de uso (anônimas) ----------------
@@ -518,7 +530,7 @@ function renderLegend(){
   const it = (col, nm, txt, cls) => `<div class="it"><span class="sw${cls?' '+cls:''}" style="background:${col}"></span><span><b>${nm}</b> — ${txt}</span></div>`;
   if (P.tab === 'bonde'){
     $('legend').innerHTML = it('var(--cP)', 'Peso', 'a Terra puxando a cabine (com as pessoas) para baixo.')
-      + it('var(--cP)', 'Puxa cabo abaixo', 'a parte do peso que tenta fazer o bondinho descer o cabo (P·senθ).', 'd')
+      + it('var(--cP)', 'Puxa cabo abaixo', 'a parte do peso que tenta fazer o bondinho descer o cabo (\\(P\\sen\\theta\\)).', 'd')
       + it('var(--cN)', 'Normal', 'o cabo de apoio empurrando cada roda para cima, perpendicular ao cabo.')
       + it('var(--cT)', 'Cabo puxa', 'o cabo de tração puxando o bondinho morro acima (T). Faz o papel que o atrito faz no carro.')
       + `<div class="it"><span class="sw" style="height:14px;width:14px;border-radius:50%;margin:2px 5px 0;background:conic-gradient(#111 0 25%,#fff 0 50%,#111 0 75%,#fff 0);border:1.5px solid #111"></span><span><b>Centro de gravidade</b> — o ponto onde o peso age.</span></div>`;
@@ -526,7 +538,7 @@ function renderLegend(){
   }
   const stu = P.tab !== 'prof', obj = P.tab==='bloco' ? 'o bloco' : 'o carro';
   let h = it('var(--cP)', stu?'Peso':'P = m·g', 'a Terra puxando '+obj+' para baixo, sempre na vertical.');
-  h += it('var(--cP)', stu?'Puxa rampa abaixo':'P·senθ', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
+  h += it('var(--cP)', stu?'Puxa rampa abaixo':'\\(P\\sen\\theta\\)', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
   h += it('var(--cN)', stu?'Normal':'N_A, N_B', P.tab==='bloco' ? 'o chão empurrando o bloco para fora da rampa.' : 'o chão empurrando cada par de rodas para fora da rampa (uma seta atrás, outra na frente).');
   h += it('var(--cF)', stu?'Atrito':'F_at', P.tab==='bloco' ? 'o chão segurando o bloco, contra o escorregão. Fica vermelho quando escorrega.' : 'o chão empurrando o pneu. É ele que faz o carro <b>andar</b> (motor) ou <b>segurar</b> (freio). Fica vermelho quando patina.');
   h += `<div class="it"><span class="sw" style="height:14px;width:14px;border-radius:50%;margin:2px 5px 0;background:conic-gradient(#111 0 25%,#fff 0 50%,#111 0 75%,#fff 0);border:1.5px solid #111"></span><span><b>Centro de gravidade</b> — o ponto onde o peso age, como se toda a massa estivesse ali.</span></div>`;
@@ -641,19 +653,30 @@ function arrow(x1,y1,x2,y2,col,w=6,dash=null){
 }
 // Etiquetas vão para uma fila; no fim do quadro um organizador afasta as que se encostam
 // (umas das outras e dos quadros fixos) e liga cada uma à sua seta com uma linha tracejada.
-let TAGS = [], OBS = [];
+let TAGS = [], OBS = [], CEN = null;   // CEN: centro do objeto (os rótulos são puxados para fora a partir dele)
 function tag(txt, x, y, col, size=16, sub){ TAGS.push({txt, x, y, ox:x, oy:y, col, size: Wc < 600 ? Math.round(size*0.8) : size, sub}); }
+// texto com índice de verdade: "N_A" vira N com A pequeno embaixo
+function richParts(txt){ const out = []; const re = /_([A-Za-zÀ-ú0-9]+)/g; let last = 0, m; while ((m = re.exec(txt))){ if (m.index > last) out.push([txt.slice(last, m.index), 0]); out.push([m[1], 1]); last = re.lastIndex; } if (last < txt.length) out.push([txt.slice(last), 0]); return out; }
+function richW(txt, size, weight){ let w = 0; for (const [s, sb] of richParts(txt)){ ctx.font = `${weight} ${sb ? Math.round(size*.68) : size}px ${FONT_UI}`; w += ctx.measureText(s).width; } return w; }
+function drawRich(txt, cx, y, size, weight){ let x = cx - richW(txt, size, weight)/2; ctx.textAlign = 'left'; for (const [s, sb] of richParts(txt)){ ctx.font = `${weight} ${sb ? Math.round(size*.68) : size}px ${FONT_UI}`; ctx.fillText(s, x, sb ? y + size*.3 : y); x += ctx.measureText(s).width; } }
+// Organizador de rótulos: cada rótulo de força é puxado para FORA do objeto e ligado à seta por uma
+// linha-guia com cotovelo (como numa prancha técnica); depois os que ainda se encostam são afastados.
 function flushTags(){
   const cr = cv.getBoundingClientRect(), vr = $('verdict').getBoundingClientRect();
   if (vr.width) OBS.push({x: vr.left - cr.left + vr.width/2, y: vr.top - cr.top + vr.height/2, w: vr.width + 8, h: vr.height + 8});
   ctx.save();
-  TAGS.forEach(t => { ctx.font = `800 ${t.size}px ${FONT_UI}`; let w = ctx.measureText(t.txt).width;
-    if (t.sub){ ctx.font = `700 ${t.size-3}px ${FONT_UI}`; w = Math.max(w, ctx.measureText(t.sub).width); }
-    t.w = w + 18; t.h = t.sub ? t.size*2.35 : t.size*1.65; });
+  const push = Wc < 600 ? 34 : 58;
+  TAGS.forEach(t => {
+    t.w = Math.max(richW(t.txt, t.size, 800), t.sub ? (ctx.font = `700 ${t.size-3}px ${FONT_UI}`, ctx.measureText(t.sub).width) : 0) + 18;
+    t.h = t.sub ? t.size*2.35 : t.size*1.65;
+    t.call = CEN && t.col !== C.cDim && t.col !== C.accent && t.col !== C.muted;
+    if (t.call){ let dx = t.ox - CEN[0], dy = t.oy - CEN[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l;
+      t.x = t.ox + dx*push + Math.sign(dx || 1)*t.w*0.35; t.y = t.oy + dy*push*0.7; }
+  });
   const clamp = t => { t.x = Math.max(t.w/2+4, Math.min(Wc-t.w/2-4, t.x)); t.y = Math.max(t.h/2+4, Math.min(Hc-t.h/2-4, t.y)); };
   TAGS.forEach(clamp);
-  const gap = 5;
-  for (let it = 0; it < 120; it++){
+  const gap = 6;
+  for (let it = 0; it < 140; it++){
     let moved = false;
     for (let i = 0; i < TAGS.length; i++){
       const a = TAGS[i];
@@ -672,10 +695,12 @@ function flushTags(){
     }
     if (!moved) break;
   }
-  TAGS.forEach(t => { if (Math.hypot(t.x-t.ox, t.y-t.oy) > 10){
-    ctx.strokeStyle = t.col; ctx.globalAlpha = .7; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
-    ctx.beginPath(); ctx.moveTo(t.ox, t.oy); ctx.lineTo(t.x, t.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(t.ox, t.oy, 3, 0, 7); ctx.fill(); } });
+  // linhas-guia: ponto na seta → cotovelo → encosta no rótulo
+  TAGS.forEach(t => { if (Math.hypot(t.x-t.ox, t.y-t.oy) <= 12) return;
+    const side = t.x >= t.ox ? -1 : 1, ex = t.x + side*t.w/2, elbow = [ex + side*14, t.y];
+    ctx.strokeStyle = t.col; ctx.globalAlpha = .85; ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(t.ox, t.oy); ctx.lineTo(elbow[0], elbow[1]); ctx.lineTo(ex, t.y); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(t.ox, t.oy, 3.5, 0, 7); ctx.fill(); });
   TAGS.forEach(t => {
     const {x, y, w, h, col, size, txt, sub} = t;
     const outline = col === C.cDim;
@@ -683,11 +708,11 @@ function flushTags(){
     ctx.fillStyle = outline ? C.panel : col; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, w, h, h/2 > 14 ? 9 : h/2); ctx.fill();
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     if (outline){ ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke(); }
-    ctx.fillStyle = outline ? col : (C.dark ? '#0c1016' : '#ffffff'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = `800 ${size}px ${FONT_UI}`; ctx.fillText(txt, x, sub ? y - size*0.45 : y+1);
-    if (sub){ ctx.font = `700 ${size-3}px ${FONT_UI}`; ctx.fillText(sub, x, y + size*0.62); }
+    ctx.fillStyle = outline ? col : (C.dark ? '#0c1016' : '#ffffff'); ctx.textBaseline = 'middle';
+    drawRich(txt, x, sub ? y - size*0.45 : y+1, size, 800);
+    if (sub){ ctx.font = `700 ${size-3}px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText(sub, x, y + size*0.62); }
   });
-  ctx.restore(); TAGS = []; OBS = [];
+  ctx.restore(); TAGS = []; OBS = []; CEN = null;
 }
 
 // ================= cena infinita: câmera, cenário, vista explodida =================
@@ -966,8 +991,11 @@ function draw(){
     });
     if (e > 0.6) tag(prof ? 'reações no chão (3ª lei)' : 'o carro empurra o chão de volta (3ª lei)', grounds[0][0] - 70, grounds[0][1] + 34, C.muted, 12);
     if (prof && sh.ma && Math.abs(R.a) > 1e-3){
-      const len = R.m*R.a*kpx; garrow(4, G[0],G[1], G[0]+u[0]*len, G[1]+u[1]*len, C.cMa, 4, [9,6]);
-      gtag(4, 'm·a', G[0]+u[0]*(len+Math.sign(len)*32), G[1]+u[1]*(len+Math.sign(len)*32) - 14, C.cMa, 14, val?fmtF(R.m*R.a):null);
+      // na escala das forças m·a costuma ser curta demais (fica escondida no centro de gravidade):
+      // a seta sai de um ponto acima do carro e tem um comprimento mínimo para ser vista
+      const sgn = Math.sign(R.a), len = sgn*Math.max(Math.abs(R.m*R.a*kpx), 70), S0 = [G[0] + n[0]*52, G[1] + n[1]*52];
+      garrow(4, S0[0], S0[1], S0[0]+u[0]*len, S0[1]+u[1]*len, C.cMa, 5, [10,6]);
+      gtag(4, 'm·a', S0[0]+u[0]*len, S0[1]+u[1]*len, C.cMa, 14, val ? fmtF(R.m*R.a) + ' · a = ' + br(R.a, 2) + ' m/s²' : null);
     }
     if (prof && sh.mom){
       const Ms = [R.MB, R.MA, R.MF], Mx = Math.max(1, ...Ms.map(Math.abs));
@@ -977,7 +1005,7 @@ function draw(){
     }
   }
   if (R.block) drawParticles(T, k, sim.run ? dt*speed : 0);
-  cgMark(G);
+  cgMark(G); CEN = G;
   flushTags();
   return R;
 }
@@ -1064,7 +1092,7 @@ function drawBonde(R, dt){
   if (R.T > 1){ const c = T(s+B.Lc+0.25, yh+lift), len = R.T*kpx;
     garrow(3, c[0], c[1], c[0]+u[0]*len, c[1]+u[1]*len, C.cT, 7);
     gtag(3, who('Cabo puxa', 'o motor lá em cima'), c[0]+u[0]*(len+44), c[1]+u[1]*(len+44) - 6, C.cT, 15); }
-  cgMark(G);
+  cgMark(G); CEN = G;
   chips(null, 'Inclinação do cabo');
 }
 
@@ -1098,7 +1126,7 @@ function netBox(R){
   const up = R.bonde ? R.T : Math.max(0, R.F), scl = Math.max(R.Wt, up, Math.abs(F), 1)*1.08, pc = x => Math.min(100, Math.abs(x)/scl*100);
   const rD = $('resDown'), rU = $('resUp');
   rD.style.setProperty('--vc', col); rU.style.setProperty('--vc', col);
-  rD.style.width = (F < -1 ? pc(F) : 0) + '%'; rU.style.width = (F > 1 ? pc(F) : 0) + '%';
+  rD.style.width = (F < -1 ? Math.max(pc(F), 9) : 0) + '%'; rU.style.width = (F > 1 ? Math.max(pc(F), 9) : 0) + '%';
   rD.textContent = ''; rU.textContent = '';
   const rt = $('resTxt'); rt.style.setProperty('--vc', col);
   rt.innerHTML = Math.abs(F) < 1 ? '■ resultante zero: as forças se equilibram' : F > 0 ? `resultante m·a = ${fmtF(F)} para cima ▶` : `◀ resultante m·a = ${fmtF(-F)} para baixo`;
@@ -1152,7 +1180,7 @@ function panels(R, force){
   else if (R.slip) s = `Você pediu <b>${fmtF(req)}</b> ao pneu (contorno tracejado), mas o piso só aguenta ${LM}. <b>O pneu patina</b> e empurra só ${U}${up < down ? ', menos que a ladeira puxa: o carro desce' : ''}.`;
   else if (Math.abs(up - down) < 1) s = `Empurra ${U} = puxa ${D}. Empate: velocidade constante.`;
   else s = up > down ? `O pneu empurra o carro para cima com ${U}. A ladeira puxa para baixo com ${D}. <b>Laranja ganha: sobe.</b>` : `O pneu empurra para cima com ${U}, mas a ladeira puxa com ${D}. <b>Vermelho ganha: desce.</b> Pise mais no acelerador.`;
-  $('say').innerHTML = s;
+  setMath($('say'), s);
 
   if (!R.block){
     const pa = Math.max(0, Math.min(100, R.Na/R.Wn*100)), pb = 100 - pa;
@@ -1162,12 +1190,12 @@ function panels(R, force){
   }
 
   if (P.tab === 'prof' && !R.block){
-    const n = x => br(x/1000, 2), m = R.m*R.a;
-    $('eqs').innerHTML = `
-    <div><div class="step">ΣF<sub>y</sub> = 0 (perpendicular à rampa)</div>N<sub>A</sub> + N<sub>B</sub> − mg·cosθ = 0<br><span class="n">${n(R.Na)} + ${n(R.Nb)} − ${n(R.Wn)} = 0 kN</span></div>
-    <div><div class="step">ΣF<sub>x</sub> = m·a (ao longo da rampa)</div>F<sub>at</sub> − mg·senθ = m·a<br><span class="n">${n(R.F)} − ${n(R.Wt)} = ${n(m)} kN → a = ${br(R.a,3)} m/s²</span></div>
-    <div><div class="step">ΣM<sub>G</sub> = I<sub>G</sub>·α = 0 (translação)</div>N<sub>B</sub>·(L−b) − N<sub>A</sub>·b + F<sub>at</sub>·h = 0<br><span class="n">${n(R.Nb)}·${br(R.L-R.b)} − ${n(R.Na)}·${br(R.b)} + ${n(R.F)}·${br(R.h)} = 0</span></div>
-    <div><div class="step">Resolvendo</div>N<sub>B</sub> = (mg·cosθ·b − F<sub>at</sub>·h)/L = <b>${fmtF(R.Nb)}</b><br>N<sub>A</sub> = <b>${fmtF(R.Na)}</b> · μ<sub>mín</sub> = F<sub>at</sub>/N<sub>motriz</sub> = <b>${br(R.muReq,3)}</b></div>`;
+    const kt = x => br(x/1000, 2).replace(',', '{,}'), ta = x => br(x, 3).replace(',', '{,}'), tb = x => br(x, 2).replace(',', '{,}'), tm = x => br(x, 3).replace(',', '{,}'), m = R.m*R.a;
+    setMath($('eqs'), `
+    <div><div class="step">Perpendicular à rampa</div>\\(\\displaystyle\\sum F_y = 0 \\) <br>\\(\\displaystyle N_A + N_B - m g\\cos\\theta = 0\\)<br><span class="n">\\(${kt(R.Na)} + ${kt(R.Nb)} - ${kt(R.Wn)} = 0\\ \\mathrm{kN}\\)</span></div>
+    <div><div class="step">Ao longo da rampa</div>\\(\\displaystyle\\sum F_x = m\\,a \\) <br>\\(\\displaystyle F_{at} - m g\\sen\\theta = m\\,a\\)<br><span class="n">\\(${kt(R.F)} - ${kt(R.Wt)} = ${kt(m)}\\ \\mathrm{kN} \\) <br>\\(\\displaystyle a = ${ta(R.a)}\\ \\mathrm{m/s^2}\\)</span></div>
+    <div><div class="step">Momentos em torno de G (translação, α = 0)</div>\\(\\displaystyle\\sum M_G = I_G\\,\\alpha = 0 \\) <br>\\(\\displaystyle N_B\\,(L-b) - N_A\\,b + F_{at}\\,h = 0\\)<br><span class="n">\\(${kt(R.Nb)}\\cdot ${tb(R.L-R.b)} - ${kt(R.Na)}\\cdot ${tb(R.b)} + ${kt(R.F)}\\cdot ${tb(R.h)} = 0\\)</span></div>
+    <div><div class="step">Resolvendo</div>\\(\\displaystyle N_B = \\frac{m g\\cos\\theta\\; b - F_{at}\\, h}{L} = ${kt(R.Nb)}\\ \\mathrm{kN}\\)<br>\\(N_A = ${kt(R.Na)}\\ \\mathrm{kN} \\qquad \\mu_{\\min} = \\dfrac{F_{at}}{N_{\\text{motriz}}} = ${tm(R.muReq)}\\)</div>`);
   }
 }
 
@@ -1188,21 +1216,21 @@ function panelsBonde(R){
   $('tugGhost').hidden = true; $('tugLim').hidden = true;
   const D = `<b class="dn">${fmtF(down)}</b>`, U = `<b style="color:var(--cT)">${fmtF(up)}</b>`;
   let s;
-  if (P.mode === 'romper') s = `Sem o cabo de tração, só a parte do peso age ao longo do cabo (${D}). O bondinho desce com a = g·senθ = <b>${br(g*Math.sin(R.th))} m/s²</b>. A cabine fica perpendicular ao cabo: lá dentro parece que não existe ladeira.`;
+  if (P.mode === 'romper') s = `Sem o cabo de tração, só a parte do peso age ao longo do cabo (${D}). O bondinho desce com \\(a = g\\sen\\theta\\) = <b>${br(g*Math.sin(R.th))} m/s²</b>. A cabine fica perpendicular ao cabo: lá dentro parece que não existe ladeira.`;
   else if (R.hold) s = `O cabo puxa ${U}, exatamente a parte do peso ao longo do cabo (${D}). <b>Equilíbrio: fica parado.</b>`;
   else s = up > down ? `O cabo puxa para cima com ${U}. A parte do peso puxa para baixo com ${D}. <b>Azul ganha: sobe.</b>` : `O cabo puxa para cima com ${U}, mas a parte do peso puxa para baixo com ${D}. <b>Vermelho ganha: desce.</b> Aumente a força no cabo.`;
   const sw = deg(R.phi);
   if (Math.abs(sw) > 0.5 && P.mode !== 'romper') s += ` A cabine balança <b>${br(Math.abs(sw),1)}° para ${sw < 0 ? 'trás' : 'frente'}</b> porque está acelerando.`;
-  $('say').innerHTML = s;
+  setMath($('say'), s);
   const pa = Math.max(0, Math.min(100, R.Na/R.Wn*100)), pb = 100 - pa;
   $('axBar').innerHTML = `<div style="width:${pa}%;background:${C.cN}">roda de baixo ${pa.toFixed(0)}%</div><div style="width:${pb}%;background:${C.accent}">roda de cima ${pb.toFixed(0)}%</div>`;
   $('axTxt').innerHTML = 'Puxado <b>por cima</b> pelo cabo, o bondinho joga peso na roda de cima. No carro é o contrário: o chão empurra <b>por baixo</b> e o peso vai para a roda de trás.';
-  const n = x => br(x/1000, 2);
-  $('eqs').innerHTML = `
-    <div><div class="step">ΣF<sub>x</sub> = m·a (ao longo do cabo)</div>T − mg·senθ = m·a<br><span class="n">${n(R.T)} − ${n(R.Wt)} = ${n(R.m*a)} kN → a = ${br(a,3)} m/s²</span></div>
-    <div><div class="step">ΣF<sub>y</sub> = 0 (perpendicular ao cabo)</div>N<sub>A</sub> + N<sub>B</sub> − mg·cosθ = 0<br><span class="n">${n(R.Na)} + ${n(R.Nb)} − ${n(R.Wn)} = 0 kN</span></div>
-    <div><div class="step">ΣM no pino do carrinho = 0 (carrinho leve)</div>N<sub>B</sub>·L/2 − N<sub>A</sub>·L/2 − T·e = 0<br><span class="n">N<sub>B</sub> − N<sub>A</sub> = 2·e·T/L = ${n(2*BONDE.e*R.T/BONDE.Lc)} kN (L = ${br(BONDE.Lc,1)} m, e = ${br(BONDE.e,1)} m)</span></div>
-    <div><div class="step">Cabine pendurada (pêndulo)</div>alinha com g − a → φ = <b>${br(Math.abs(sw),1)}°</b> da vertical<br><span class="n">m = 2000 + 75·${P.pess} = ${R.m} kg</span></div>`;
+  const kt = x => br(x/1000, 2).replace(',', '{,}'), ta = x => br(x, 3).replace(',', '{,}'), tb = x => br(x, 1).replace(',', '{,}');
+  setMath($('eqs'), `
+    <div><div class="step">Ao longo do cabo</div>\\(\\displaystyle\\sum F_x = m\\,a \\) <br>\\(\\displaystyle T - m g\\sen\\theta = m\\,a\\)<br><span class="n">\\(${kt(R.T)} - ${kt(R.Wt)} = ${kt(R.m*a)}\\ \\mathrm{kN} \\) <br>\\(\\displaystyle a = ${ta(a)}\\ \\mathrm{m/s^2}\\)</span></div>
+    <div><div class="step">Perpendicular ao cabo</div>\\(\\displaystyle\\sum F_y = 0 \\) <br>\\(\\displaystyle N_A + N_B - m g\\cos\\theta = 0\\)<br><span class="n">\\(${kt(R.Na)} + ${kt(R.Nb)} - ${kt(R.Wn)} = 0\\ \\mathrm{kN}\\)</span></div>
+    <div><div class="step">Momentos no pino do carrinho (carrinho leve)</div>\\(\\displaystyle\\sum M = 0 \\) <br>\\(\\displaystyle N_B\\,\\tfrac{L}{2} - N_A\\,\\tfrac{L}{2} - T\\,e = 0\\)<br><span class="n">\\(N_B - N_A = \\dfrac{2\\,e\\,T}{L} = ${kt(2*BONDE.e*R.T/BONDE.Lc)}\\ \\mathrm{kN}\\)</span></div>
+    <div><div class="step">Cabine pendurada (pêndulo)</div>alinha com \\(\\vec g - \\vec a\\): \\(\\varphi = ${tb(Math.abs(sw))}^\\circ\\) da vertical<br><span class="n">\\(m = 2000 + 75\\cdot ${P.pess} = ${R.m}\\ \\mathrm{kg}\\)</span></div>`);
 }
 
 // ---------------- botões ----------------

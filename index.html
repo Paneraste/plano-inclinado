@@ -57,6 +57,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .scen button svg{width:17px;height:17px}
 .scen button:hover{color:var(--text)}
 .scen button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
+.scen button[data-t="prof"].on svg{color:var(--cMa)} .scen button[data-t="bloco"].on svg{color:var(--cF)}
+.scen button[data-t="carro"].on svg{color:var(--accent)} .scen button[data-t="bonde"].on svg{color:var(--cT)}
 .scen button small{display:none}
 .tools{display:flex;gap:6px}
 .icon-btn{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--line);background:var(--panel);border-radius:9px;color:var(--muted)}
@@ -79,6 +81,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .exps button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid transparent;background:transparent;padding:8px 10px;border-radius:9px;font-size:14px;line-height:1.3}
 .exps button:hover{background:var(--soft)}
 .exps button .n{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;background:var(--sunk);color:var(--muted);font:600 12px var(--f-num)}
+.exps button .t{flex:1;min-width:0}
+.exps button .o{flex:none;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;color:var(--panel);white-space:nowrap}
+.o.up{background:var(--ok)} .o.down{background:var(--warn)} .o.hold{background:var(--accent)} .o.bad{background:var(--bad)}
 .exps button.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--text);font-weight:600}
 .exps button.on .n{background:var(--accent);color:var(--onacc)}
 .obs{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--soft);border-left:3px solid var(--accent);font-size:14px;line-height:1.55}
@@ -87,8 +92,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .stage{position:relative;overflow:hidden}
 canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var(--r) var(--r) 0 0}
 .verdict{position:absolute;top:14px;left:14px;right:14px;pointer-events:none;display:flex}
-.verdict div{display:inline-flex;align-items:center;gap:10px;padding:9px 16px 9px 14px;border-radius:999px;background:var(--panel);border:2px solid var(--line);font-size:20px;font-weight:700;letter-spacing:-.01em;box-shadow:var(--shadow);max-width:100%}
-.verdict div::before{content:"";width:10px;height:10px;border-radius:50%;background:currentColor;flex:none}
+.verdict div{display:inline-flex;align-items:center;gap:10px;padding:8px 18px 8px 8px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,var(--panel));border:2px solid currentColor;font-size:20px;font-weight:700;letter-spacing:-.01em;box-shadow:var(--shadow);max-width:100%}
+.verdict div::before{content:"■";display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:currentColor;color:var(--panel);font-size:14px;flex:none}
+.verdict div[data-s="up"]::before{content:"▲"}
+.verdict div[data-s="down"]::before{content:"▼"}
+.verdict div[data-s="hold"]::before{content:"■"}
+.verdict div[data-s="bad"]::before{content:"!";font-size:18px;font-weight:900}
 @media (max-width:700px){.verdict div{font-size:16px}}
 .toolbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
 .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 13px;font-size:14px;font-weight:600}
@@ -111,6 +120,10 @@ canvas{display:block;width:100%;height:clamp(460px,64vh,640px);border-radius:var
 .tug .limit span{position:absolute;top:-22px;right:4px;width:200px;text-align:right;white-space:nowrap;font:600 11.5px var(--f-num);color:var(--text)}
 .tug .mid{position:absolute;left:50%;top:-5px;bottom:-5px;border-left:2px solid var(--text);opacity:.7}
 .tug .lbls{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:13px;color:var(--muted)}
+.tug .bar.win{box-shadow:0 0 0 3px color-mix(in srgb,currentColor 0%,transparent),0 0 16px 2px color-mix(in srgb,var(--text) 18%,transparent)}
+.net{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:10px;font-weight:600;font-size:15px;background:color-mix(in srgb,currentColor 10%,var(--panel));border:1.5px solid color-mix(in srgb,currentColor 45%,transparent)}
+.net .ico{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:currentColor;color:var(--panel);font-size:13px;flex:none}
+.net .lab{color:var(--text)} .net b{font-family:var(--f-num)}
 .say{font-size:15.5px;line-height:1.6;margin-top:12px}
 .say b{font-weight:700}
 .say b.dn{color:var(--cP)} .say b.up{color:var(--cF)}
@@ -203,6 +216,7 @@ footer a{color:var(--muted)}
             <div class="mid"></div>
           </div>
           <div class="lbls"><span>◀ <b style="color:var(--cP)">Puxa para BAIXO</b> (parte do peso)</span><span id="upLbl"><b style="color:var(--cF)">Empurra para CIMA</b> (atrito) ▶</span></div>
+          <div class="net" id="net"></div>
           <div class="say" id="say"></div>
         </div>
         <div class="axle" id="axle" hidden>
@@ -297,9 +311,19 @@ const EXPS = {
   ],
 };
 let expOn = null;
+const OUT_TXT = {up:'▲ sobe', down:'▼ desce', hold:'■ parado', bad:'! falha'};
+function preview(set){
+  const snap = Object.assign({}, P), vl = VIEW_LEN;
+  tabDefaults(P.tab); if (set === 'ex') loadExample(); else applySet(set);
+  const R0 = solve(0), st = stateOf(R0);
+  const why = st !== 'bad' ? OUT_TXT[st] : R0.bonde ? '! cabo rompe' : R0.Nb < 0 ? '! empina' : R0.kind === 'freio' ? '! escorrega' : '! patina';
+  Object.keys(P).forEach(k => delete P[k]); Object.assign(P, snap); VIEW_LEN = vl;
+  return [st, why];
+}
 function renderExps(){
   const list = EXPS[P.tab];
-  $('exps').innerHTML = list.map(([t], i) => `<button data-i="${i}" class="${expOn===i?'on':''}"><span class="n">${i+1}</span>${t}</button>`).join('');
+  $('exps').innerHTML = list.map(([t, set], i) => { const [o, why] = preview(set);
+    return `<button data-i="${i}" class="${expOn===i?'on':''}"><span class="n">${i+1}</span><span class="t">${t}</span><span class="o ${o}">${why}</span></button>`; }).join('');
   $('obs').innerHTML = expOn == null ? 'Escolha um experimento acima ou mexa nos ajustes e aperte <b>Soltar</b>.' : list[expOn][2];
 }
 $('exps').onclick = e => {
@@ -320,13 +344,16 @@ function loadExample(){
 }
 
 // ---------------- abas ----------------
-function setTab(t, reset=true){
-  VIEW_LEN = null;
+function tabDefaults(t){
   Object.assign(P, BASE, {tab:t});
   if (t === 'bloco') applySet({ang:25, piso:'liso'});
   if (t === 'carro') applySet({ang:10, F:4, piso:'seco', carga:'0'});
   if (t === 'prof') applySet({ang:5.71, F:4, mus:0.8, muk:0.7});
   if (t === 'bonde') applySet({ang:25, pess:20, T:18, mode:'puxar'});
+}
+function setTab(t, reset=true){
+  VIEW_LEN = null;
+  tabDefaults(t);
   $('upLbl').innerHTML = t === 'bonde' ? '<b style="color:var(--cT)">Puxa para CIMA</b> (cabo de tração) ▶' : '<b style="color:var(--cF)">Empurra para CIMA</b> (atrito) ▶';
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   $('eqcard').hidden = t !== 'prof' && t !== 'bonde';
@@ -407,6 +434,7 @@ function renderLegend(){
   h += it('var(--cP)', stu?'Puxa rampa abaixo':'P·senθ', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
   h += it('var(--cN)', stu?'Normal':'N_A, N_B', P.tab==='bloco' ? 'o chão empurrando o bloco para fora da rampa.' : 'o chão empurrando cada par de rodas para fora da rampa (uma seta atrás, outra na frente).');
   h += it('var(--cF)', stu?'Atrito':'F_at', P.tab==='bloco' ? 'o chão segurando o bloco, contra o escorregão. Fica vermelho quando escorrega.' : 'o chão empurrando o pneu. É ele que faz o carro <b>andar</b> (motor) ou <b>segurar</b> (freio). Fica vermelho quando patina.');
+  if (P.tab !== 'bloco') h += it('var(--cF)', 'Miolo laranja', 'roda que puxa (motriz). <b>Miolo vermelho</b>: roda travada pelo freio.', '');
   if (!stu) h += it('var(--cMa)', 'm·a', 'resultado das forças (não é uma força a mais).', 'dm');
   $('legend').innerHTML = h;
 }
@@ -496,7 +524,7 @@ $('btnSlow').onclick = () => { speed = speed === 1 ? 0.35 : 1; $('btnSlow').clas
 const FONT_UI = '"IBM Plex Sans","Segoe UI",system-ui,sans-serif';
 const cv = $('cv'), ctx = cv.getContext('2d');
 let C = {}, Wc = 0, Hc = 0, dpr = 1;
-function colors(){ const cs = getComputedStyle(document.documentElement); ['panel','soft','line','text','muted','accent','sky1','sky2','ramp','ramp2','road','car','car2','glass','crate','crate2','cP','cN','cF','cMa','cM','cDim','cT','ok','warn','bad'].forEach(k => C[k] = cs.getPropertyValue('--'+k).trim()); }
+function colors(){ const cs = getComputedStyle(document.documentElement); C.dark = (document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark'; ['panel','soft','line','text','muted','accent','sky1','sky2','ramp','ramp2','road','car','car2','glass','crate','crate2','cP','cN','cF','cMa','cM','cDim','cT','ok','warn','bad'].forEach(k => C[k] = cs.getPropertyValue('--'+k).trim()); }
 colors();
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', colors); } catch(e){}
 function resize(){ dpr = devicePixelRatio || 1; const r = cv.getBoundingClientRect(); Wc = r.width; Hc = r.height; cv.width = Wc*dpr; cv.height = Hc*dpr; }
@@ -504,11 +532,17 @@ new ResizeObserver(resize).observe(cv); resize();
 
 function arrow(x1,y1,x2,y2,col,w=6,dash=null){
   const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if (len<3) return;
-  const ux=dx/len, uy=dy/len, hd=Math.min(18, len*0.45), hw=hd*0.62;
-  ctx.save(); ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=w; ctx.lineCap='round';
-  if (dash) ctx.setLineDash(dash);
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2-ux*hd*0.9, y2-uy*hd*0.9); ctx.stroke(); ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-ux*hd-uy*hw, y2-uy*hd+ux*hw); ctx.lineTo(x2-ux*hd+uy*hw, y2-uy*hd-ux*hw); ctx.closePath(); ctx.fill(); ctx.restore();
+  const ux=dx/len, uy=dy/len, hd=Math.min(20, len*0.45), hw=hd*0.62;
+  const one = (c, lw, grow) => {
+    ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
+    if (dash) ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2-ux*hd*0.9, y2-uy*hd*0.9); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x2+ux*grow,y2+uy*grow); ctx.lineTo(x2-ux*(hd+grow)-uy*(hw+grow), y2-uy*(hd+grow)+ux*(hw+grow)); ctx.lineTo(x2-ux*(hd+grow)+uy*(hw+grow), y2-uy*(hd+grow)-ux*(hw+grow)); ctx.closePath(); ctx.fill(); if (grow) ctx.stroke();
+  };
+  ctx.save();
+  ctx.globalAlpha = .9; one(C.panel, w + 5, 2.5); ctx.globalAlpha = 1;
+  ctx.shadowColor = col; ctx.shadowBlur = dash ? 0 : 6; one(col, w, 0);
+  ctx.restore();
 }
 // Etiquetas vão para uma fila; no fim do quadro um organizador afasta as que se encostam
 // (umas das outras e dos quadros fixos) e liga cada uma à sua seta com uma linha tracejada.
@@ -520,7 +554,7 @@ function flushTags(){
   ctx.save();
   TAGS.forEach(t => { ctx.font = `800 ${t.size}px ${FONT_UI}`; let w = ctx.measureText(t.txt).width;
     if (t.sub){ ctx.font = `700 ${t.size-3}px ${FONT_UI}`; w = Math.max(w, ctx.measureText(t.sub).width); }
-    t.w = w + 14; t.h = t.sub ? t.size*2.3 : t.size*1.55; });
+    t.w = w + 18; t.h = t.sub ? t.size*2.35 : t.size*1.65; });
   const clamp = t => { t.x = Math.max(t.w/2+4, Math.min(Wc-t.w/2-4, t.x)); t.y = Math.max(t.h/2+4, Math.min(Hc-t.h/2-4, t.y)); };
   TAGS.forEach(clamp);
   const gap = 5;
@@ -549,9 +583,12 @@ function flushTags(){
     ctx.fillStyle = t.col; ctx.beginPath(); ctx.arc(t.ox, t.oy, 3, 0, 7); ctx.fill(); } });
   TAGS.forEach(t => {
     const {x, y, w, h, col, size, txt, sub} = t;
-    ctx.fillStyle = C.panel; ctx.globalAlpha = .96; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, w, h, 7); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const outline = col === C.cDim;
+    ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = outline ? C.panel : col; ctx.beginPath(); ctx.roundRect(x-w/2, y-h/2, w, h, h/2 > 14 ? 9 : h/2); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    if (outline){ ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke(); }
+    ctx.fillStyle = outline ? col : (C.dark ? '#0c1016' : '#ffffff'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `800 ${size}px ${FONT_UI}`; ctx.fillText(txt, x, sub ? y - size*0.45 : y+1);
     if (sub){ ctx.font = `700 ${size-3}px ${FONT_UI}`; ctx.fillText(sub, x, y + size*0.62); }
   });
@@ -571,9 +608,19 @@ function draw(){
   const k = kMin; VIEW_LEN = Ls/k;
   const x0 = Math.max(24, (Wc - Ls*cs)/2), xt = x0 + Ls*cs, yt = y0 - Ls*sn;
   ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.lineTo(Wc,Hc); ctx.lineTo(0,Hc); ctx.closePath(); ctx.fillStyle = C.ramp; ctx.fill();
-  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.strokeStyle = C.road; ctx.lineWidth = 5; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+130,y0); ctx.strokeStyle = C.ramp2; ctx.lineWidth = 2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(x0,y0,64,-th,0); ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.stroke();
+  // hachura de engenharia (símbolo de superfície fixa) logo abaixo da rampa
+  ctx.save(); ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.lineTo(Wc,Hc); ctx.lineTo(0,Hc); ctx.closePath(); ctx.clip();
+  ctx.strokeStyle = C.ramp2; ctx.lineWidth = 1.5; ctx.globalAlpha = .8;
+  const hatch = (ax, ay, bx, by) => { const L2 = Math.hypot(bx-ax, by-ay), ux2 = (bx-ax)/L2, uy2 = (by-ay)/L2; for (let d = 6; d < L2; d += 13){ const px = ax+ux2*d, py = ay+uy2*d; ctx.beginPath(); ctx.moveTo(px, py+3); ctx.lineTo(px-9, py+15); ctx.stroke(); } };
+  hatch(0, y0, x0, y0); hatch(x0, y0, xt, yt); hatch(xt, yt, Wc, yt);
+  ctx.restore();
+  const surf = surface();
+  ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,y0); ctx.lineTo(x0,y0); ctx.lineTo(xt,yt); ctx.lineTo(Wc,yt); ctx.strokeStyle = surf.col; ctx.lineWidth = 8; ctx.stroke();
+  if (surf.line){ ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(xt,yt); ctx.strokeStyle = surf.line; ctx.lineWidth = 2; ctx.setLineDash(surf.dash || []); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x0+130,y0); ctx.strokeStyle = C.ramp2; ctx.lineWidth = 2; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.arc(x0,y0,64,-th,0); ctx.closePath(); ctx.fillStyle = C.cMa; ctx.globalAlpha = .18; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(x0,y0,64,-th,0); ctx.strokeStyle = C.cMa; ctx.lineWidth = 3; ctx.stroke();
   ctx.save(); ctx.font = `800 ${Wc < 600 ? 16 : 22}px "IBM Plex Sans","Segoe UI",sans-serif`; ctx.textBaseline = 'middle';
   ctx.fillStyle = C.text; ctx.fillText('θ', x0 + 74*Math.cos(th/2) + 4, y0 - 74*Math.sin(th/2) + 2);
   const at = 'Inclinação θ = '+br(P.ang,1)+'°', tw = ctx.measureText(at).width, lx = 14, ly = Hc - 48;
@@ -581,6 +628,18 @@ function draw(){
   ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.fillStyle = C.text; ctx.fillText(at, lx+9, ly+18); ctx.restore();
   OBS.push({x: lx + (tw+18)/2, y: ly + 18, w: tw + 18, h: 36});
+  { // selo do piso: cor + nome (identificável de longe)
+    ctx.save(); ctx.font = `700 ${Wc < 600 ? 12 : 14}px ${FONT_UI}`; ctx.textBaseline = 'middle';
+    const pt = 'Piso: ' + surf.name, pw = ctx.measureText(pt).width + 40, px = lx + tw + 30, py = ly + 4;
+    if (px + pw < Wc - 8){
+      ctx.fillStyle = C.panel; ctx.globalAlpha = .92; ctx.beginPath(); ctx.roundRect(px, py, pw, 28, 14); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = C.line; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = surf.col; ctx.beginPath(); ctx.arc(px + 15, py + 14, 7, 0, 7); ctx.fill(); ctx.strokeStyle = C.text; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = C.text; ctx.fillText(pt, px + 28, py + 15);
+      OBS.push({x: px + pw/2, y: py + 14, w: pw, h: 28});
+    }
+    ctx.restore();
+  }
 
   const u = [cs, -sn], n = [-sn, -cs];
   const T = (x,y) => [x0 + (x*cs - y*sn)*k, y0 - (x*sn + y*cs)*k];
@@ -778,6 +837,33 @@ function drawBonde(R){
 }
 
 
+function surface(){
+  if (P.tab === 'bloco'){
+    if (P.piso === 'liso') return {col:'#7cc8e8', name:'sem atrito (liso)', line:'#e9f8ff', dash:[2,10]};
+    if (P.piso === 'madeira') return {col:'#a0703c', name:'madeira', line:'#c79a62', dash:[18,8]};
+    return {col:'#2b2f35', name:'borracha', line:null};
+  }
+  const mu = P.mus;
+  if (mu >= 0.7) return {col:'#30353c', name:'asfalto seco', line:'#f5f5f5', dash:[14,12]};
+  if (mu >= 0.5) return {col:'#2f5f8f', name:'asfalto molhado', line:'#9fd0ff', dash:[3,6]};
+  if (mu >= 0.3) return {col:'#8a6a43', name:'terra', line:'#b8925f', dash:[2,7]};
+  return {col:'#bfe7f5', name:'gelo', line:'#ffffff', dash:[1,9]};
+}
+function stateOf(R){
+  if (R.bonde) return P.mode === 'romper' ? 'bad' : R.hold ? 'hold' : R.a > 1e-3 ? 'up' : R.a < -1e-3 ? 'down' : 'hold';
+  if (R.hold) return 'hold';
+  if (!R.block && (R.Nb < 0 || R.slip)) return 'bad';
+  return R.a > 1e-3 ? 'up' : R.a < -1e-3 ? 'down' : 'hold';
+}
+function netBox(R){
+  const st = stateOf(R), F = R.m*R.a, col = {up:C.ok, down:C.warn, hold:C.accent, bad:C.bad}[st];
+  const ico = Math.abs(F) < 1 ? '■' : F > 0 ? '▲' : '▼';
+  const txt = Math.abs(F) < 1 ? 'zero: as forças se equilibram' : `${fmtF(Math.abs(F))} ${F > 0 ? 'para CIMA' : 'para BAIXO'} da rampa → a = ${br(Math.abs(R.a))} m/s²`;
+  $('net').style.color = col;
+  $('net').innerHTML = `<span class="ico">${ico}</span><span class="lab">Força resultante (m·a): <b>${txt}</b></span>`;
+  $('tugDown').classList.toggle('win', R.a < -1e-3); $('tugUp').classList.toggle('win', R.a > 1e-3);
+}
+
 // ---------------- painéis ----------------
 let lastP = 0;
 function panels(R, force){
@@ -793,7 +879,7 @@ function panels(R, force){
   else if (v > 0){ t = a < -e ? obj+' sobe, mas vai parar' : obj+' SOBE ↗'; if (a < -e) col = C.warn; }
   else { t = obj+' DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
-  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = col;
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').dataset.s = stateOf(R); netBox(R);
   $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
 
   // cabo de guerra
@@ -849,7 +935,7 @@ function panelsBonde(R){
   else if (v > 0){ t = a < -e ? 'O bondinho sobe, mas vai parar' : 'O bondinho SOBE ↗'; if (a < -e) col = C.warn; }
   else { t = 'O bondinho DESCE ↘'; col = C.warn; }
   if (sim.msg) t += ' · ' + sim.msg;
-  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = col;
+  $('verdict').textContent = t; $('verdict').style.color = col; $('verdict').style.borderColor = ''; $('verdict').dataset.s = stateOf(R); netBox(R);
   $('simInfo').textContent = `velocidade ${br(Math.abs(v)*3.6,1)} km/h · ${br(sim.t,1)} s`;
   const down = R.Wt, up = R.T, sc = Math.max(down, up, 1)*1.08, pct = x => Math.min(100, x/sc*100);
   $('tugDown').style.width = pct(down)+'%'; $('tugDown').textContent = pct(down) > 25 ? fmtF(down) : '';

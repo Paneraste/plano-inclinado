@@ -44,6 +44,22 @@ html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--f-ui
 button{font:inherit;color:inherit;cursor:pointer}
 :focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px;border-radius:8px}
 [hidden]{display:none!important}
+.show-sm{display:none}
+@media (max-width:600px){
+  .hide-sm{display:none}.show-sm{display:inline}
+  .top-in{gap:8px;padding-block:8px}
+  .brand{flex:1 1 auto;min-width:0}.brand h1{font-size:15px}.brand p{display:none}.brand svg{width:28px;height:28px}
+  .top-in{position:relative}.brand{padding-right:76px}
+  .tools{position:absolute;top:8px;right:max(16px,env(safe-area-inset-right,0px))}.scen{width:100%;margin-left:0;flex-wrap:nowrap}
+  .scen button{flex:1;flex-direction:column;gap:2px;padding:6px 2px;font-size:11.5px;justify-content:center}
+  .scen button svg{width:16px;height:16px}
+  .icon-btn{width:32px;height:32px}
+  .app .toolbar{flex-wrap:wrap;gap:5px;padding:7px 8px}
+  .app .toolbar .btn{padding:6px 9px;font-size:12.5px;gap:5px;white-space:nowrap}
+  .app .toolbar .btn svg{width:15px;height:15px}
+  .app .toolbar .readout{font-size:11px;width:100%;margin-left:0}
+  .legend .it{font-size:13px}
+}
 
 /* ---------- barra superior ---------- */
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
@@ -240,8 +256,8 @@ window.MathJax = { tex: { inlineMath: [['\\(', '\\)']], macros: { sen: '\\operat
       <div class="toolbar">
         <button class="btn primary" id="btnPlay">⏸ Pausar</button>
         <button class="btn toggle" id="btnExp" title="Separa o corpo do chão e mostra quem faz cada força"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="7" rx="1.5"/><path d="M12 13v3M9 16l3 3 3-3"/><path d="M3 21h18"/></svg><span class="lbl">Desmontar</span></button>
-        <button class="btn" id="btnReset">⟲ Recomeçar</button>
-        <button class="btn toggle" id="btnSlow">Câmera lenta</button>
+        <button class="btn" id="btnReset" title="Recomeçar">⟲<span class="hide-sm"> Recomeçar</span></button>
+        <button class="btn toggle" id="btnSlow"><span class="hide-sm">Câmera lenta</span><span class="show-sm">Lenta</span></button>
         <span class="readout" id="simInfo"></span>
       </div>
     </section>
@@ -530,18 +546,18 @@ function buildControls(){
 function renderLegend(){
   const it = (col, nm, txt, cls) => `<div class="it"><span class="sw${cls?' '+cls:''}" style="background:${col}"></span><span><b>${nm}</b> — ${txt}</span></div>`;
   if (P.tab === 'bonde'){
-    $('legend').innerHTML = it('var(--cP)', 'Peso', 'a Terra puxando a cabine (com as pessoas) para baixo.')
-      + it('var(--cP)', 'Puxa cabo abaixo', 'a parte do peso que tenta fazer o bondinho descer o cabo (\\(P\\sen\\theta\\)).', 'd')
-      + it('var(--cN)', 'Normal', 'o cabo de apoio empurrando cada roda para cima, perpendicular ao cabo.')
-      + it('var(--cT)', 'Cabo puxa', 'o cabo de tração puxando o bondinho morro acima (T). Faz o papel que o atrito faz no carro.')
+    $('legend').innerHTML = it('var(--cP)', 'Peso (P)', 'a Terra puxando a cabine (com as pessoas) para baixo.')
+      + it('var(--cP)', 'Puxa cabo abaixo (P·senθ)', 'a parte do peso que tenta fazer o bondinho descer o cabo (\\(P\\sen\\theta\\)).', 'd')
+      + it('var(--cN)', 'Normal (N)', 'o cabo de apoio empurrando cada roda para cima, perpendicular ao cabo.')
+      + it('var(--cT)', 'Cabo puxa (T)', 'o cabo de tração puxando o bondinho morro acima (T). Faz o papel que o atrito faz no carro.')
       + `<div class="it"><span class="sw" style="height:14px;width:14px;border-radius:50%;margin:2px 5px 0;background:conic-gradient(#111 0 25%,#fff 0 50%,#111 0 75%,#fff 0);border:1.5px solid #111"></span><span><b>Centro de gravidade</b> — o ponto onde o peso age.</span></div>`;
     return;
   }
   const stu = P.tab !== 'prof', obj = P.tab==='bloco' ? 'o bloco' : 'o carro';
-  let h = it('var(--cP)', stu?'Peso':'P = m·g', 'a Terra puxando '+obj+' para baixo, sempre na vertical.');
-  h += it('var(--cP)', stu?'Puxa rampa abaixo':'\\(P\\sen\\theta\\)', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
-  h += it('var(--cN)', stu?'Normal':'N_A, N_B', P.tab==='bloco' ? 'o chão empurrando o bloco para fora da rampa.' : 'o chão empurrando cada par de rodas para fora da rampa (uma seta atrás, outra na frente).');
-  h += it('var(--cF)', stu?'Atrito':'F_at', P.tab==='bloco' ? 'o chão segurando o bloco, contra o escorregão. Fica vermelho quando escorrega.' : 'o chão empurrando o pneu. É ele que faz o carro <b>andar</b> (motor) ou <b>segurar</b> (freio). Fica vermelho quando patina.');
+  let h = it('var(--cP)', stu?'Peso (P)':'P = m·g', 'a Terra puxando '+obj+' para baixo, sempre na vertical.');
+  h += it('var(--cP)', stu?'Puxa rampa abaixo (P·senθ)':'\\(P\\sen\\theta\\)', 'a parte do peso que tenta fazer '+obj+' descer. Cresce com a inclinação.', 'd');
+  h += it('var(--cN)', stu?'Normal (N)':'N_A, N_B', P.tab==='bloco' ? 'o chão empurrando o bloco para fora da rampa.' : 'o chão empurrando cada par de rodas para fora da rampa (uma seta atrás, outra na frente).');
+  h += it('var(--cF)', stu?'Atrito (Fat)':'F_at', P.tab==='bloco' ? 'o chão segurando o bloco, contra o escorregão. Fica vermelho quando escorrega.' : 'o chão empurrando o pneu. É ele que faz o carro <b>andar</b> (motor) ou <b>segurar</b> (freio). Fica vermelho quando patina.');
   h += `<div class="it"><span class="sw" style="height:14px;width:14px;border-radius:50%;margin:2px 5px 0;background:conic-gradient(#111 0 25%,#fff 0 50%,#111 0 75%,#fff 0);border:1.5px solid #111"></span><span><b>Centro de gravidade</b> — o ponto onde o peso age, como se toda a massa estivesse ali.</span></div>`;
   if (P.tab !== 'bloco') h += it('var(--cF)', 'Miolo laranja', 'roda que puxa (motriz). <b>Miolo vermelho</b>: roda travada pelo freio.', '');
   if (!stu) h += it('var(--cMa)', 'm·a', 'resultado das forças (não é uma força a mais).', 'dm');
@@ -644,7 +660,8 @@ new ResizeObserver(resize).observe(cv); resize();
 
 function arrow(x1,y1,x2,y2,col,w=6,dash=null){
   const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy); if (len<3) return;
-  const ux=dx/len, uy=dy/len, hd=Math.min(20, len*0.45), hw=hd*0.62;
+  if (Wc < 600) w = Math.max(2, w*0.6);   // setas mais finas no celular
+  const ux=dx/len, uy=dy/len, hd=Math.min(Wc < 600 ? 12 : 20, len*0.45), hw=hd*0.62;
   const one = (c, lw, grow) => {
     ctx.strokeStyle=c; ctx.fillStyle=c; ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
     if (dash) ctx.setLineDash(dash);
@@ -659,7 +676,12 @@ function arrow(x1,y1,x2,y2,col,w=6,dash=null){
 // Etiquetas vão para uma fila; no fim do quadro um organizador afasta as que se encostam
 // (umas das outras e dos quadros fixos) e liga cada uma à sua seta com uma linha tracejada.
 let TAGS = [], OBS = [], CEN = null, OBJ = null;   // CEN: centro do objeto; OBJ: caixa do objeto na tela
-function tag(txt, x, y, col, size=16, sub){ TAGS.push({txt, x, y, ox:x, oy:y, col, size: Wc < 600 ? Math.round(size*0.8) : size, sub}); }
+// No celular (tela estreita) o desenho mostra só o símbolo de cada força, na cor dela;
+// o nome completo e os valores ficam na legenda e no painel de forças.
+const SHORT = { 'Peso':'P', 'Normal':'N', 'Atrito':'F_at', 'Puxa rampa abaixo':'P·senθ', 'Puxa cabo abaixo':'P·senθ', 'Cabo puxa':'T' };
+function tag(txt, x, y, col, size=16, sub){
+  if (Wc < 600){ if (col === C.accent || col === C.muted) return; txt = SHORT[txt] || txt; sub = null; size = 12; }
+  TAGS.push({txt, x, y, ox:x, oy:y, col, size, sub}); }
 // texto com índice de verdade: "N_A" vira N com A pequeno embaixo
 function richParts(txt){ const out = []; const re = /_([A-Za-zÀ-ú0-9]+)/g; let last = 0, m; while ((m = re.exec(txt))){ if (m.index > last) out.push([txt.slice(last, m.index), 0]); out.push([m[1], 1]); last = re.lastIndex; } if (last < txt.length) out.push([txt.slice(last), 0]); return out; }
 function richW(txt, size, weight){ let w = 0; for (const [s, sb] of richParts(txt)){ ctx.font = `${weight} ${sb ? Math.round(size*.68) : size}px ${FONT_UI}`; w += ctx.measureText(s).width; } return w; }
@@ -884,7 +906,7 @@ function draw(){
 
   const L = P.L, r = P.r, B = BLOCK;
   const small = Wc < 600;   // celular: objeto menor para sobrar espaço às colunas de rótulos
-  const k = R.block ? Math.min(Wc*(small ? 0.14 : 0.17)/B, Hc*0.22/B) : Math.min(Wc*(small ? 0.27 : 0.38)/(1.52*L), Hc*0.42/(r*3.6 + 0.6));
+  const k = R.block ? Math.min(Wc*(small ? 0.18 : 0.17)/B, Hc*0.24/B) : Math.min(Wc*(small ? 0.36 : 0.38)/(1.52*L), Hc*0.42/(r*3.6 + 0.6));
   const ref = R.block ? sim.s + B/2 : sim.s + L/2;
   if (!CAM.init){ CAM.s = ref; CAM.init = true; }
   CAM.s = ref;   // objeto fixo na tela: a velocidade aparece no cenário passando
@@ -1029,7 +1051,7 @@ function draw(){
     if (prof && sh.ma && Math.abs(R.a) > 1e-3){
       // na escala das forças m·a costuma ser curta demais (fica escondida no centro de gravidade):
       // a seta sai de um ponto acima do carro e tem um comprimento mínimo para ser vista
-      const sgn = Math.sign(R.a), len = sgn*Math.max(Math.abs(R.m*R.a*kpx), 70), S0 = [G[0] + n[0]*52, G[1] + n[1]*52];
+      const sgn = Math.sign(R.a), len = sgn*Math.max(Math.abs(R.m*R.a*kpx), small ? 40 : 70), S0 = [G[0] + n[0]*(small ? 30 : 52), G[1] + n[1]*(small ? 30 : 52)];
       garrow(4, S0[0], S0[1], S0[0]+u[0]*len, S0[1]+u[1]*len, C.cMa, 5, [10,6]);
       gtag(4, 'm·a', S0[0]+u[0]*len, S0[1]+u[1]*len, C.cMa, 14, val ? fmtF(R.m*R.a) + ' · a = ' + br(R.a, 2) + ' m/s²' : null);
     }
